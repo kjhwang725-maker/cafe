@@ -7,12 +7,18 @@ import os
 
 # ─── 데이터 수집 ───────────────────────────────────────────
 
-def fetch_yf(symbol, period="2d"):
+def fetch_yf(symbol):
     try:
-        hist = yf.Ticker(symbol).history(period=period)
-        price  = hist["Close"].iloc[-1]
-        prev   = hist["Close"].iloc[-2]
-        change = (price - prev) / prev * 100
+        hist = yf.Ticker(symbol).history(period="5d")
+        if hist.empty:
+            print(f"[WARN] {symbol} 데이터 없음")
+            return None, None
+        price = hist["Close"].iloc[-1]
+        if len(hist) >= 2:
+            prev   = hist["Close"].iloc[-2]
+            change = (price - prev) / prev * 100
+        else:
+            change = None
         return price, change
     except Exception as e:
         print(f"[WARN] {symbol} 조회 실패: {e}")
@@ -81,7 +87,7 @@ def generate_image():
     btc_p,     btc_c     = get_bitcoin_krw()
     iyr_p,     iyr_c     = fetch_yf("IYR")       # 미국 리츠 ETF
     tnx_p,     tnx_c     = fetch_yf("^TNX")      # 미국 10년물 국채 금리
-    dxy_p,     dxy_c     = fetch_yf("DX-Y.NYB")  # 달러 인덱스
+    dxy_p,     dxy_c     = fetch_yf("DX=F")       # 달러 인덱스 선물
     wti_p,     wti_c     = fetch_yf("CL=F")      # WTI 원유
     copper_p,  copper_c  = fetch_yf("HG=F")      # 구리 선물
 
