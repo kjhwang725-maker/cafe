@@ -130,9 +130,9 @@ def generate_image():
     time_str = kst.strftime("KST %H:%M")
     draw.text((W - 85, H - 18), time_str, font=font_label, fill="#444444")
 
-    os.makedirs("output", exist_ok=True)
-    img.save("output/ticker.png", optimize=True)
-    print(f"이미지 생성 완료: output/ticker.png ({kst.strftime('%Y-%m-%d %H:%M KST')})")
+    os.makedirs("docs", exist_ok=True)
+    img.save("docs/ticker.png", optimize=True)
+    print(f"이미지 생성 완료: docs/ticker.png ({kst.strftime('%Y-%m-%d %H:%M KST')})")
 
 
 if __name__ == "__main__":
