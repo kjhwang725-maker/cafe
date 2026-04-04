@@ -117,52 +117,64 @@ def generate_image():
     if btc_p:
         segments[2] = ("비트코인", f"{btc_p / 10000:,.0f}만원", btc_c)
 
-    # ── 캔버스 설정 (2줄 × 4열, 840px 고정) ────────────
+    # ── 캔버스 설정 (2줄 × 4열, 2배 해상도) ────────────
+    SCALE   = 2           # 2배 해상도로 생성 → 선명도 향상
     COLS    = 4
-    W       = 836
+    W       = 836  * SCALE
     SEG_W   = W // COLS
-    ROW_H   = 54
-    H       = ROW_H * 2      # 108px
-    PAD_L   = 12
+    PAD_V   = 10   * SCALE
+    LBL_H   = 14   * SCALE
+    VAL_H   = 20   * SCALE
+    CHG_H   = 14   * SCALE
+    GAP     = 3    * SCALE
+    INNER_H = LBL_H + GAP + VAL_H + GAP + CHG_H
+    ROW_H   = PAD_V + INNER_H + PAD_V
+    H       = ROW_H * 2
 
     img  = Image.new("RGB", (W, H), "#FFFFFF")
     draw = ImageDraw.Draw(img)
 
-    # 중간 가로 구분선만 유지
+    # 중간 가로 구분선
     draw.line([(0, ROW_H), (W, ROW_H)], fill="#EEEEEE", width=1)
 
-    font_lbl = load_font(11)
-    font_val = load_font(16)
-    font_chg = load_font(11)
+    font_lbl = load_font(11 * SCALE)
+    font_val = load_font(16 * SCALE)
+    font_chg = load_font(11 * SCALE)
 
     for i, (label, value, chg) in enumerate(segments):
         row   = i // COLS
         col   = i  % COLS
-        x     = col * SEG_W + PAD_L
         y_off = row * ROW_H
+        cx    = col * SEG_W + SEG_W // 2   # 셀 가로 중앙
 
         chg_str, chg_col = fmt_change(chg)
         val_col = chg_col if chg is not None else "#111111"
 
-        # 세로 구분선 (열 사이)
+        # 세로 구분선
         if col > 0:
             draw.line(
                 [(col * SEG_W, y_off + 10), (col * SEG_W, y_off + ROW_H - 10)],
                 fill="#DDDDDD", width=1,
             )
 
-        draw.text((x, y_off + 5),  label,   font=font_lbl, fill="#888888")
-        draw.text((x, y_off + 20), value,   font=font_val, fill=val_col)
+        # 텍스트 가운데 정렬 (anchor="mt" = middle-top)
+        y_lbl = y_off + PAD_V
+        y_val = y_lbl + LBL_H + GAP
+        y_chg = y_val + VAL_H + GAP
+
+        draw.text((cx, y_lbl), label,   font=font_lbl, fill="#888888", anchor="mt")
+        draw.text((cx, y_val), value,   font=font_val, fill=val_col,   anchor="mt")
         if chg_str:
-            draw.text((x, y_off + 40), chg_str, font=font_chg, fill=chg_col)
+            draw.text((cx, y_chg), chg_str, font=font_chg, fill=chg_col, anchor="mt")
 
     # 업데이트 시각 (우측 하단)
     kst      = datetime.now(timezone(timedelta(hours=9)))
     time_str = kst.strftime("KST %H:%M")
-    draw.text((W - 70, H - 14), time_str, font=font_lbl, fill="#AAAAAA")
+    draw.text((W - 6, H - 4), time_str, font=font_lbl, fill="#AAAAAA", anchor="rb")
 
     os.makedirs("docs", exist_ok=True)
-    img.save("docs/ticker.png", optimize=True)
+    # 저장 시 dpi 정보 포함 (브라우저가 실제 크기로 인식)
+    img.save("docs/ticker.png", optimize=True, dpi=(144, 144))
     print(f"이미지 생성 완료 ({kst.strftime('%Y-%m-%d %H:%M KST')})")
 
 
