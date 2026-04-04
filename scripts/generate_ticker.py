@@ -118,7 +118,7 @@ def generate_image():
         segments[2] = ("비트코인", f"{btc_p / 10000:,.0f}만원", btc_c)
 
     # ── 캔버스 설정 (2줄 × 4열, 2배 해상도) ────────────
-    SCALE   = 2           # 2배 해상도로 생성 → 선명도 향상
+    SCALE   = 3           # 3배 해상도로 생성 → 선명도 향상
     COLS    = 4
     W       = 836  * SCALE
     SEG_W   = W // COLS
@@ -174,7 +174,7 @@ def generate_image():
 
     os.makedirs("docs", exist_ok=True)
     # 저장 시 dpi 정보 포함 (브라우저가 실제 크기로 인식)
-    img.save("docs/ticker.png", optimize=True, dpi=(144, 144))
+    img.save("docs/ticker.png", optimize=True, dpi=(216, 216))
     print(f"이미지 생성 완료 ({kst.strftime('%Y-%m-%d %H:%M KST')})")
 
 
