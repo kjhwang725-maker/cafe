@@ -104,47 +104,52 @@ def generate_image():
     if btc_p:
         segments[2] = ("비트코인", f"{btc_p / 10000:,.0f}만원", btc_c)
 
-    # ── 캔버스 설정 ──────────────────────────────────────
-    N       = len(segments)
-    SEG_W   = 210
-    W       = SEG_W * N
-    H       = 64
-    PAD_L   = 14
+    # ── 캔버스 설정 (2줄 × 4열, 1080px 고정) ────────────
+    COLS    = 4
+    W       = 1080
+    SEG_W   = W // COLS
+    ROW_H   = 72
+    H       = ROW_H * 2      # 144px
+    PAD_L   = 16
 
     img  = Image.new("RGB", (W, H), "#080808")
     draw = ImageDraw.Draw(img)
 
-    # 그라디언트 느낌 상단/하단 테두리 선
-    draw.line([(0, 0), (W, 0)],       fill="#1A1A2E", width=2)
-    draw.line([(0, H - 1), (W, H - 1)], fill="#1A1A2E", width=2)
+    # 상단/하단 테두리
+    draw.line([(0, 0),      (W, 0)],      fill="#1A1A2E", width=2)
+    draw.line([(0, H - 1),  (W, H - 1)],  fill="#1A1A2E", width=2)
+    # 중간 가로 구분선
+    draw.line([(0, ROW_H),  (W, ROW_H)],  fill="#1E1E2E", width=1)
 
-    font_lbl = load_font(11)
-    font_val = load_font(17)
-    font_chg = load_font(11)
+    font_lbl = load_font(13)
+    font_val = load_font(22)
+    font_chg = load_font(13)
 
     for i, (label, value, chg) in enumerate(segments):
-        x = i * SEG_W + PAD_L
-        chg_str, chg_col = fmt_change(chg)
+        row   = i // COLS
+        col   = i  % COLS
+        x     = col * SEG_W + PAD_L
+        y_off = row * ROW_H
 
-        # 값 색상: 변화율이 있으면 그 색, 없으면 흰색
+        chg_str, chg_col = fmt_change(chg)
         val_col = chg_col if chg is not None else "#FFFFFF"
 
-        # 구분선
-        if i > 0:
-            draw.line([(i * SEG_W, 10), (i * SEG_W, H - 10)], fill="#2A2A3A", width=1)
+        # 세로 구분선 (열 사이)
+        if col > 0:
+            draw.line(
+                [(col * SEG_W, y_off + 10), (col * SEG_W, y_off + ROW_H - 10)],
+                fill="#2A2A3A", width=1,
+            )
 
-        # 라벨 (회색 소문자 느낌)
-        draw.text((x, 6),  label,   font=font_lbl, fill="#606080")
-        # 값 (크고 밝게)
-        draw.text((x, 22), value,   font=font_val, fill=val_col)
-        # 변화율
+        draw.text((x, y_off + 7),  label,   font=font_lbl, fill="#6060A0")
+        draw.text((x, y_off + 26), value,   font=font_val, fill=val_col)
         if chg_str:
-            draw.text((x, 47), chg_str, font=font_chg, fill=chg_col)
+            draw.text((x, y_off + 54), chg_str, font=font_chg, fill=chg_col)
 
     # 업데이트 시각 (우측 하단)
     kst      = datetime.now(timezone(timedelta(hours=9)))
     time_str = kst.strftime("KST %H:%M")
-    draw.text((W - 70, H - 14), time_str, font=font_lbl, fill="#404040")
+    draw.text((W - 75, H - 16), time_str, font=font_lbl, fill="#404040")
 
     os.makedirs("docs", exist_ok=True)
     img.save("docs/ticker.png", optimize=True)
