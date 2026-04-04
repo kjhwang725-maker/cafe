@@ -60,11 +60,22 @@ def arrow_and_color(value):
         return f"▼ {abs(value):.2f}%", "#00FF88"
 
 
-def load_font(path, size):
-    try:
-        return ImageFont.truetype(path, size)
-    except Exception:
-        return ImageFont.load_default()
+def load_font(size):
+    """한글+특수문자 지원 폰트를 우선순위대로 탐색"""
+    candidates = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJKkr-Bold.otf",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+    print("[WARN] 한글 폰트를 찾지 못했습니다. 기본 폰트 사용.")
+    return ImageFont.load_default()
 
 
 def generate_image():
@@ -101,11 +112,9 @@ def generate_image():
     img  = Image.new("RGB", (W, H), color="#0A0A0A")
     draw = ImageDraw.Draw(img)
 
-    # GitHub Actions(Ubuntu) 기본 폰트 경로
-    FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-    font_label  = load_font(FONT_PATH, 13)
-    font_value  = load_font(FONT_PATH, 18)
-    font_change = load_font(FONT_PATH, 13)
+    font_label  = load_font(13)
+    font_value  = load_font(18)
+    font_change = load_font(13)
 
     section_w = W // len(segments)
 
