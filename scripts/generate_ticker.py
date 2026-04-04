@@ -113,26 +113,23 @@ def generate_image():
     if btc_p:
         segments[2] = ("비트코인", f"{btc_p / 10000:,.0f}만원", btc_c)
 
-    # ── 캔버스 설정 (2줄 × 4열, 1080px 고정) ────────────
+    # ── 캔버스 설정 (2줄 × 4열, 840px 고정) ────────────
     COLS    = 4
-    W       = 1080
+    W       = 836
     SEG_W   = W // COLS
-    ROW_H   = 72
-    H       = ROW_H * 2      # 144px
-    PAD_L   = 16
+    ROW_H   = 54
+    H       = ROW_H * 2      # 108px
+    PAD_L   = 12
 
     img  = Image.new("RGB", (W, H), "#FFFFFF")
     draw = ImageDraw.Draw(img)
 
-    # 상단/하단 테두리
-    draw.line([(0, 0),      (W, 0)],      fill="#CCCCCC", width=2)
-    draw.line([(0, H - 1),  (W, H - 1)],  fill="#CCCCCC", width=2)
-    # 중간 가로 구분선
-    draw.line([(0, ROW_H),  (W, ROW_H)],  fill="#EEEEEE", width=1)
+    # 중간 가로 구분선만 유지
+    draw.line([(0, ROW_H), (W, ROW_H)], fill="#EEEEEE", width=1)
 
-    font_lbl = load_font(13)
-    font_val = load_font(22)
-    font_chg = load_font(13)
+    font_lbl = load_font(11)
+    font_val = load_font(16)
+    font_chg = load_font(11)
 
     for i, (label, value, chg) in enumerate(segments):
         row   = i // COLS
@@ -150,15 +147,15 @@ def generate_image():
                 fill="#DDDDDD", width=1,
             )
 
-        draw.text((x, y_off + 7),  label,   font=font_lbl, fill="#888888")
-        draw.text((x, y_off + 26), value,   font=font_val, fill=val_col)
+        draw.text((x, y_off + 5),  label,   font=font_lbl, fill="#888888")
+        draw.text((x, y_off + 20), value,   font=font_val, fill=val_col)
         if chg_str:
-            draw.text((x, y_off + 54), chg_str, font=font_chg, fill=chg_col)
+            draw.text((x, y_off + 40), chg_str, font=font_chg, fill=chg_col)
 
     # 업데이트 시각 (우측 하단)
     kst      = datetime.now(timezone(timedelta(hours=9)))
     time_str = kst.strftime("KST %H:%M")
-    draw.text((W - 75, H - 16), time_str, font=font_lbl, fill="#AAAAAA")
+    draw.text((W - 70, H - 14), time_str, font=font_lbl, fill="#AAAAAA")
 
     os.makedirs("docs", exist_ok=True)
     img.save("docs/ticker.png", optimize=True)
