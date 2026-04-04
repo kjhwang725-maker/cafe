@@ -90,7 +90,7 @@ def generate_image():
     btc_p,     btc_c     = get_bitcoin_krw()
     iyr_p,     iyr_c     = fetch_yf("IYR")       # 미국 리츠 ETF
     tnx_p,     tnx_c     = fetch_yf("^TNX")      # 미국 10년물 국채 금리
-    dxy_p,     dxy_c     = fetch_yf("DX=F")       # 달러 인덱스 선물
+    dxy_p,     dxy_c     = fetch_yf("UUP")        # 달러 인덱스 ETF
     wti_p,     wti_c     = fetch_yf("CL=F")      # WTI 원유
     copper_p,  copper_c  = fetch_yf("HG=F")      # 구리 선물
 
@@ -104,7 +104,7 @@ def generate_image():
         ("비트코인",    val(btc_p,    "{:.0f}만원").replace("만원", "") if btc_p else "N/A",  btc_c),
         ("리츠 IYR",   val(iyr_p,    "${:.2f}"),          iyr_c),
         ("국채 10Y",   val(tnx_p,    "{:.3f}%"),          tnx_c),
-        ("달러 DXY",   val(dxy_p,    "{:.2f}"),           dxy_c),
+        ("달러 UUP",   val(dxy_p,    "${:.2f}"),           dxy_c),
         ("WTI 유가",   val(wti_p,    "${:.2f}"),          wti_c),
         ("구리 선물",  val(copper_p, "${:.3f}"),          copper_c),
     ]
