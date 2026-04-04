@@ -9,19 +9,22 @@ import os
 
 def fetch_yf(symbol):
     try:
-        hist = yf.Ticker(symbol).history(period="5d")
+        ticker = yf.Ticker(symbol)
+        hist   = ticker.history(period="5d")
+        print(f"[DEBUG] {symbol}: {len(hist)}행, columns={list(hist.columns)}")
         if hist.empty:
-            print(f"[WARN] {symbol} 데이터 없음")
+            print(f"[WARN] {symbol} 데이터 없음 (empty)")
             return None, None
-        price = hist["Close"].iloc[-1]
+        price = float(hist["Close"].iloc[-1])
         if len(hist) >= 2:
-            prev   = hist["Close"].iloc[-2]
+            prev   = float(hist["Close"].iloc[-2])
             change = (price - prev) / prev * 100
         else:
             change = None
+        print(f"[INFO] {symbol}: price={price:.4f}, change={change}")
         return price, change
     except Exception as e:
-        print(f"[WARN] {symbol} 조회 실패: {e}")
+        print(f"[ERROR] {symbol} 조회 실패: {type(e).__name__}: {e}")
         return None, None
 
 
