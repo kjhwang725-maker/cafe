@@ -51,7 +51,7 @@ def fmt_change(chg):
     if chg is None:
         return "", "#888888"
     sym = "▲" if chg >= 0 else "▼"
-    col = "#FF4D4D" if chg >= 0 else "#00E676"
+    col = "#CC0000" if chg >= 0 else "#007700"
     return f"{sym}{abs(chg):.2f}%", col
 
 
@@ -112,14 +112,14 @@ def generate_image():
     H       = ROW_H * 2      # 144px
     PAD_L   = 16
 
-    img  = Image.new("RGB", (W, H), "#080808")
+    img  = Image.new("RGB", (W, H), "#FFFFFF")
     draw = ImageDraw.Draw(img)
 
     # 상단/하단 테두리
-    draw.line([(0, 0),      (W, 0)],      fill="#1A1A2E", width=2)
-    draw.line([(0, H - 1),  (W, H - 1)],  fill="#1A1A2E", width=2)
+    draw.line([(0, 0),      (W, 0)],      fill="#CCCCCC", width=2)
+    draw.line([(0, H - 1),  (W, H - 1)],  fill="#CCCCCC", width=2)
     # 중간 가로 구분선
-    draw.line([(0, ROW_H),  (W, ROW_H)],  fill="#1E1E2E", width=1)
+    draw.line([(0, ROW_H),  (W, ROW_H)],  fill="#EEEEEE", width=1)
 
     font_lbl = load_font(13)
     font_val = load_font(22)
@@ -132,16 +132,16 @@ def generate_image():
         y_off = row * ROW_H
 
         chg_str, chg_col = fmt_change(chg)
-        val_col = chg_col if chg is not None else "#FFFFFF"
+        val_col = chg_col if chg is not None else "#111111"
 
         # 세로 구분선 (열 사이)
         if col > 0:
             draw.line(
                 [(col * SEG_W, y_off + 10), (col * SEG_W, y_off + ROW_H - 10)],
-                fill="#2A2A3A", width=1,
+                fill="#DDDDDD", width=1,
             )
 
-        draw.text((x, y_off + 7),  label,   font=font_lbl, fill="#6060A0")
+        draw.text((x, y_off + 7),  label,   font=font_lbl, fill="#888888")
         draw.text((x, y_off + 26), value,   font=font_val, fill=val_col)
         if chg_str:
             draw.text((x, y_off + 54), chg_str, font=font_chg, fill=chg_col)
@@ -149,7 +149,7 @@ def generate_image():
     # 업데이트 시각 (우측 하단)
     kst      = datetime.now(timezone(timedelta(hours=9)))
     time_str = kst.strftime("KST %H:%M")
-    draw.text((W - 75, H - 16), time_str, font=font_lbl, fill="#404040")
+    draw.text((W - 75, H - 16), time_str, font=font_lbl, fill="#AAAAAA")
 
     os.makedirs("docs", exist_ok=True)
     img.save("docs/ticker.png", optimize=True)
