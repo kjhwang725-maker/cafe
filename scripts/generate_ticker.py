@@ -66,6 +66,10 @@ def fmt_change(chg):
 
 def load_font(size):
     candidates = [
+        # Windows
+        "C:/Windows/Fonts/malgunbd.ttf",   # 맑은 고딕 Bold
+        "C:/Windows/Fonts/malgun.ttf",     # 맑은 고딕
+        # Linux (GitHub Actions)
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJKkr-Bold.otf",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
