@@ -169,7 +169,7 @@ def generate_image():
 
     # 업데이트 시각 (우측 하단)
     kst      = datetime.now(timezone(timedelta(hours=9)))
-    time_str = kst.strftime("KST %H:%M")
+    time_str = kst.strftime("%Y-%m-%d %H:%M")
     draw.text((W - 6, H - 4), time_str, font=font_lbl, fill="#AAAAAA", anchor="rb")
 
     os.makedirs("docs", exist_ok=True)
