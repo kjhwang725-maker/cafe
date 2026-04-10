@@ -6,3 +6,6 @@ __pycache__/
 venv/
 .env
 *.local
+
+# ECOS API 키가 들어갈 수 있음 — 저장소에 커밋하지 않음 (Secrets·로컬 전용)
+한국은행.md
