@@ -5,9 +5,15 @@ docs/index.html 화면을 렌더링해 docs/ticker.png 로 저장합니다 (헤�
   playwright install chromium
 
   python scripts/capture_ticker.py
+  python scripts/capture_ticker.py --ticker-only
   python scripts/capture_ticker.py --output docs/ticker.png --full-page
 
+기본은 브라우저에서 index.html 을 연 것과 동일하게 .fixed-container 전체(헤더~푸터·차트 포함).
+상단 전광판만(카페 썸네일)은 --ticker-only (#ticker-board).
+문서 루트 전체(여백까지)는 --full-page.
+
 ※ data.json 은 fetch 로 불러오므로 내장 HTTP 서버로 띄운 뒤 캡처합니다.
+※ 로컬과 동일한 캐시 동작을 위해 index.html?_cb=… 로 엽니다.
 """
 
 from __future__ import annotations
@@ -59,11 +65,23 @@ def main() -> None:
     p.add_argument(
         "--full-page",
         action="store_true",
-        help="전체 페이지 캡처 (.fixed-container 대신 스크롤 전체)",
+        help="body 기준 스크롤 전체 캡처 (.fixed-container·선택자 무시)",
     )
     p.add_argument("--wait-ms", type=int, default=2500, help="로드 후 추가 대기(ms), 차트 렌더용")
     p.add_argument("--port", type=int, default=0, help="0이면 빈 포트 자동")
+    p.add_argument(
+        "--ticker-only",
+        action="store_true",
+        help="헤더·금리·시장지표만 (#ticker-board), 카페용 짧은 이미지",
+    )
+    p.add_argument(
+        "--selector",
+        default=".fixed-container",
+        help="스크린샷할 요소 CSS 선택자 (기본: index.html 과 동일한 본문 영역)",
+    )
     args = p.parse_args()
+    if args.ticker_only:
+        args.selector = "#ticker-board"
 
     if not (docs / "index.html").is_file():
         print(f"없음: {docs / 'index.html'}", file=sys.stderr)
@@ -71,7 +89,9 @@ def main() -> None:
 
     port = args.port or _free_port()
     httpd = _start_docs_server(docs, port)
-    url = f"http://127.0.0.1:{port}/index.html"
+    # index.html 의 캐시 무력화 리다이렉트와 동일하게 처음부터 ?_cb= 로 열기
+    cb = int(time.time() * 1000)
+    url = f"http://127.0.0.1:{port}/index.html?_cb={cb}"
     out = args.output
     if not out.is_absolute():
         out = root / out
@@ -80,8 +100,9 @@ def main() -> None:
         time.sleep(0.15)
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
+            # index.html 금리 3열은 min-[1001px]:grid-cols-3 — 뷰포트 1001 미만이면 PNG만 1열로 찍힘
             context = browser.new_context(
-                viewport={"width": 920, "height": 1600},
+                viewport={"width": 1100, "height": 1200},
                 device_scale_factor=2,
             )
             page = context.new_page()
@@ -103,7 +124,15 @@ def main() -> None:
             if args.full_page:
                 page.screenshot(path=str(out), full_page=True, type="png")
             else:
-                box = page.locator(".fixed-container")
+                box = page.locator(args.selector)
+                if box.count() == 0:
+                    print(
+                        f"경고: 선택자 '{args.selector}' 없음 — #ticker-board → .fixed-container 순 폴백",
+                        file=sys.stderr,
+                    )
+                    box = page.locator("#ticker-board")
+                if box.count() == 0:
+                    box = page.locator(".fixed-container")
                 if box.count() == 0:
                     page.screenshot(path=str(out), full_page=True, type="png")
                 else:

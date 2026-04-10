@@ -48,12 +48,19 @@
     height: 1rem;
     stroke-width: 2px;
   }
+  /* ticker.png 캡처 전용: 헤더·금리 3열·시장지표만 (부동산 마켓 분석 제외) */
+  #ticker-board {
+    width: 100%;
+    max-width: 836px;
+    margin: 0 auto;
+  }
 </style>
 </head>
 <body class="text-slate-800 text-sm">
 <div class="fixed-container">
-  <header class="mb-10 flex items-center justify-between gap-4">
-    <div class="flex items-center gap-5">
+  <div id="ticker-board">
+  <header class="mb-10 flex flex-col gap-6 min-[1001px]:flex-row min-[1001px]:items-center min-[1001px]:justify-between">
+    <div class="flex min-w-0 items-center gap-5">
       <div class="bg-[#03c75a] p-4 rounded-2xl shadow-lg shadow-[#03c75a]/30 flex items-center justify-center" title="네이버 카페">
         <!-- 네이버 카페 앱 아이콘 스타일: 초록 배경 위 흰 컵 + 스팀 실루엣 -->
         <svg class="w-8 h-8 shrink-0" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="네이버 카페">
@@ -80,7 +87,7 @@
         </p>
       </div>
     </div>
-    <div class="flex flex-col items-end justify-center text-right gap-0.5 bg-white/80 backdrop-blur px-5 py-3 rounded-2xl shadow-sm border border-slate-200 min-w-0">
+    <div class="flex w-full min-w-0 flex-col items-end justify-center gap-0.5 rounded-2xl border border-slate-200 bg-white/80 px-5 py-3 text-right backdrop-blur shadow-sm min-[1001px]:w-auto">
       <div class="text-xs font-black text-[#03c75a] tracking-wide">최종 업데이트일</div>
       <div id="generated" class="text-sm font-bold text-slate-600 tabular-nums">데이터 로드 중…</div>
     </div>
@@ -89,8 +96,9 @@
   <div id="error" class="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800 shadow-sm" style="display:none;"></div>
 
   <div class="mb-10 space-y-5">
-    <div id="finance-row-rates" class="grid min-w-0 grid-cols-3 gap-5 max-[1000px]:grid-cols-1"></div>
+    <div id="finance-row-rates" class="grid min-w-0 grid-cols-1 gap-5 min-[1001px]:grid-cols-3"></div>
     <div id="finance-row-market" class="w-full min-w-0"></div>
+  </div>
   </div>
 
   <main class="space-y-6">
@@ -103,8 +111,8 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-6 max-[900px]:grid-cols-1">
-      <div class="col-span-2 bg-white rounded-2xl p-7 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)] border border-slate-200 relative max-[900px]:col-span-1">
+    <div class="grid grid-cols-1 gap-6 min-[901px]:grid-cols-3">
+      <div class="col-span-1 bg-white rounded-2xl p-7 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)] border border-slate-200 relative min-[901px]:col-span-2">
         <div class="mb-6">
           <h3 class="font-extrabold text-lg text-slate-900 mb-1">아파트 매매가격지수 (월간)</h3>
           <p class="text-xs text-slate-400 font-medium empty:hidden" id="housing-note"></p>
@@ -122,7 +130,7 @@
         <div id="supply-demand-list" class="space-y-6"></div>
       </div>
 
-      <div class="col-span-3 grid grid-cols-2 gap-6 max-[900px]:col-span-1 max-[900px]:grid-cols-1">
+      <div class="col-span-1 grid grid-cols-1 gap-6 min-[901px]:col-span-3 min-[901px]:grid-cols-2">
         <div class="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)]">
           <h3 class="font-extrabold text-base text-slate-900 mb-6 flex items-center gap-2.5">
             <div class="p-1.5 bg-purple-100 rounded-lg"><i data-lucide="building-2" class="text-purple-600 w-4 h-4"></i></div> 상업용 부동산 공실률 (%)
@@ -587,7 +595,7 @@
         "activity",
         "bg-rose-500",
         marketDefs,
-        "grid grid-cols-2 gap-x-10 gap-y-8 max-[720px]:grid-cols-1"
+        "grid grid-cols-1 gap-x-10 gap-y-8 min-[721px]:grid-cols-2"
       );
 
       var he = data.housing_ecos || {};
