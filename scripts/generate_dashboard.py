@@ -287,12 +287,22 @@ def build_payload() -> dict:
         "note": "404Y014·총지수·월",
     }
 
-    housing_ecos = build_housing_rone_apartment_regions(_rows)
-    if "R-ONE" in (housing_ecos.get("note") or ""):
-        footnotes.append(
-            "아파트 매매가격지수(서울·경기·월)는 한국부동산원 부동산통계전문(R-ONE) Open API 통계표 A_2024_00045입니다."
-        )
-    rone = build_rone_optional()
+    try:
+        housing_ecos = build_housing_rone_apartment_regions(_rows)
+        if "R-ONE" in (housing_ecos.get("note") or ""):
+            footnotes.append(
+                "아파트 매매가격지수(서울·경기·월)는 한국부동산원 부동산통계전문(R-ONE) Open API 통계표 A_2024_00045입니다."
+            )
+    except Exception as e:
+        print(f"[WARN] R-ONE 주택지수 수집 실패 — ECOS 폴백: {e}")
+        from real_estate_market import build_housing_ecos_rows
+        housing_ecos = build_housing_ecos_rows(_rows)
+
+    try:
+        rone = build_rone_optional()
+    except Exception as e:
+        print(f"[WARN] R-ONE(부동산원) 데이터 수집 실패 — 스킵: {e}")
+        rone = {"ok": False, "message": f"R-ONE 수집 실패: {e}"}
 
     return {
         "generated_at": now.isoformat(),
