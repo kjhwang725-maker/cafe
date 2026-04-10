@@ -3,7 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- iframe·CDN이 옛 HTML을 길게 캐시하는 경우 완화 (브라우저마다 효과 다름) -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
 <title>네이버카페 공간시장</title>
+<script>
+(function () {
+  try {
+    if (location.protocol !== "http:" && location.protocol !== "https:") return;
+    var u = new URL(location.href);
+    if (!u.searchParams.has("_cb")) {
+      u.searchParams.set("_cb", String(Date.now()));
+      location.replace(u.toString());
+    }
+  } catch (e) {}
+})();
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
