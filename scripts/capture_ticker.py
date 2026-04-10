@@ -85,7 +85,8 @@ def main() -> None:
                 device_scale_factor=2,
             )
             page = context.new_page()
-            page.goto(url, wait_until="networkidle", timeout=120_000)
+            # networkidle 은 CDN·차트 때문에 끝나지 않아 CI에서 타임아웃( exit 1 ) 날 수 있음
+            page.goto(url, wait_until="load", timeout=120_000)
             try:
                 page.wait_for_function(
                     """() => {
