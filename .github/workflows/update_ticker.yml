@@ -1,15 +1,15 @@
 # Secrets: ECOS_API_KEY (필수), REB_API_KEY (선택·한국부동산원 R-ONE)
-# deploy-pages 는 전용 job + OIDC 권한이 필요해 빌드와 분리합니다.
 name: Update Dashboard
 
 on:
   schedule:
-    # 매일 한국시간 09:00 (KST = UTC+9 → GitHub cron은 UTC 기준 00:00)
-    - cron: "0 0 * * *"
+    - cron: "0 0 * * *"   # 매일 00:00 UTC = 한국 09:00
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
@@ -19,33 +19,19 @@ jobs:
   build:
     name: 데이터·ticker·아티팩트
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: 코드 체크아웃
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Python 설정
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: 의존성 캐시
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
 
       - name: 의존성 설치
         run: pip install -r requirements.txt
 
-      - name: REB API 키를 config/reb_api.json에 병합 (선택)
+      - name: REB API 키 병합 (선택)
         env:
           REB_API_KEY: ${{ secrets.REB_API_KEY }}
         run: |
@@ -53,7 +39,7 @@ jobs:
           import json, os
           k = os.environ.get("REB_API_KEY", "").strip()
           if not k:
-              print("REB_API_KEY 비어 있음 — 한국은행.md·reb_api.json 로컬과 동일하게 쓰려면 Secrets에 등록")
+              print("REB_API_KEY 비어 있음 — 스킵")
               raise SystemExit(0)
           p = "config/reb_api.json"
           cfg = {"api_key": k, "tables": {}}
@@ -67,29 +53,21 @@ jobs:
           print("config/reb_api.json api_key 반영됨")
           PY
 
-      - name: 전광판 데이터·페이지 생성
+      - name: 전광판 데이터 생성
         env:
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
           REB_API_KEY: ${{ secrets.REB_API_KEY }}
-        run: |
-          if [ -z "${ECOS_API_KEY}" ]; then
-            echo "::error::Secrets에 ECOS_API_KEY가 없거나 비어 있습니다."
-            exit 1
-          fi
-          python scripts/generate_dashboard.py
+        run: python scripts/generate_dashboard.py
 
-      - name: index 화면 캡처 → docs/ticker.png
-        env:
-          CI: true
+      - name: index 캡처 → ticker.png
+        continue-on-error: true
         run: |
+          pip install playwright
           python -m playwright install chromium --with-deps
           python scripts/capture_ticker.py --wait-ms 4000
 
-      - name: Pages용 설정
-        uses: actions/configure-pages@v5
-
       - name: Pages 아티팩트 업로드
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
           path: docs
 
@@ -99,17 +77,17 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/data.json docs/ticker.png
           if git diff --staged --quiet; then
-            echo "data.json / ticker.png 변경 없음"
+            echo "변경 없음"
           else
             git commit -m "chore: data.json & ticker.png $(date -u +'%Y-%m-%d %H:%M UTC')"
-            git pull --rebase origin "${{ github.ref_name }}"
+            git pull --rebase origin main
             git push
           fi
 
   deploy:
     name: GitHub Pages 배포
-    runs-on: ubuntu-latest
     needs: build
+    runs-on: ubuntu-latest
     permissions:
       pages: write
       id-token: write
@@ -117,6 +95,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: 배포
+      - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
