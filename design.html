@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>공간시장 | 마켓 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            letter-spacing: -0.04em;
+            background-color: #f8fafc;
+        }
+
+        /* 836px 고정 너비 설정 */
+        .fixed-container {
+            width: 836px;
+            margin: 0 auto;
+            padding: 32px 20px;
+        }
+
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 10s linear infinite;
+        }
+        
+        .line-path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: draw 2s forwards ease-out;
+        }
+
+        @keyframes draw {
+            to { stroke-dashoffset: 0; }
+        }
+    </style>
+</head>
+<body class="text-slate-900">
+
+    <div class="fixed-container">
+        <!-- Header -->
+        <header class="mb-8 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-blue-600 p-3.5 rounded-[4px] shadow-lg shadow-blue-500/20 flex items-center justify-center" title="네이버 카페">
+                    <svg class="w-8 h-8 shrink-0" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="네이버 카페">
+                        <path fill="#fff" d="M6 6.5h20a2 2 0 012 2v9.2a2 2 0 01-2 2h-8.4l-3.4 3.6V19.7H6a2 2 0 01-2-2V8.5a2 2 0 012-2z" />
+                        <circle cx="11.5" cy="13.1" r="1.65" fill="#2563eb" />
+                        <circle cx="16" cy="13.1" r="1.65" fill="#2563eb" />
+                        <circle cx="20.5" cy="13.1" r="1.65" fill="#2563eb" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 text-blue-600 font-black tracking-widest text-[9px] uppercase">
+                        <i data-lucide="activity" class="w-3 h-3"></i>
+                        Space Market Intelligence
+                    </div>
+                    <h1 class="text-4xl font-black tracking-tighter flex items-center gap-2">
+                        공간시장 <span class="text-slate-300 font-thin">|</span> <span class="text-blue-600 text-3xl">마켓 대시보드</span>
+                    </h1>
+                    <p class="text-slate-500 mt-0.5 flex items-center gap-1.5 text-[13px] font-semibold">
+                        디벨로퍼 '부동산 관련' 종합 빅데이터 포럼으로
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 bg-white px-5 py-2.5 rounded-[4px] shadow-sm border border-slate-100">
+                <i data-lucide="refresh-cw" class="text-blue-500 w-3 h-3 animate-spin-slow"></i>
+                <div class="text-left">
+                    <div class="text-[9px] font-black text-blue-600 uppercase tracking-tighter">Live Update</div>
+                    <div id="last-updated" class="text-[11px] font-bold text-slate-600">데이터 로드 중...</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Financial Stats Grid -->
+        <div id="finance-grid" class="grid grid-cols-4 gap-4 mb-8">
+            <!-- JavaScript로 카드 삽입 -->
+        </div>
+
+        <!-- Real Estate Section -->
+        <main class="space-y-6">
+            <div class="flex items-center mb-2 border-b-2 border-slate-200 pb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-1.5 bg-blue-100 rounded-[4px]">
+                        <i data-lucide="home" class="text-blue-600 w-5 h-5"></i>
+                    </div>
+                    <h2 class="text-2xl font-black tracking-tight text-slate-800">부동산 마켓 분석</h2>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-6">
+                <!-- Apartment Index Chart -->
+                <div class="col-span-2 bg-white rounded-[4px] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-10">
+                        <div>
+                            <h3 class="font-extrabold text-xl mb-0.5">주간 아파트 가격지수</h3>
+                            <p class="text-[11px] text-slate-400 font-medium">한국부동산원 (2021.06.28 = 100)</p>
+                        </div>
+                        <div class="flex gap-3 p-1.5 bg-slate-50 rounded-[4px] px-4 border border-slate-100">
+                            <div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600"><span class="w-2.5 h-2.5 bg-blue-600 rounded-full"></span> 매매</div>
+                            <div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> 전세</div>
+                        </div>
+                    </div>
+                    
+                    <div id="price-index-chart-container" class="relative h-56 px-4 mb-6">
+                        <svg id="line-chart-svg" class="absolute inset-0 w-full h-full pointer-events-none px-4" preserveAspectRatio="none">
+                            <path id="sales-path" class="line-path" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                            <path id="rent-path" class="line-path" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <div id="chart-overlay" class="relative w-full h-full flex items-end justify-between">
+                            <!-- JS로 삽입 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supply/Demand -->
+                <div class="bg-white rounded-[4px] p-6 shadow-sm border border-slate-100">
+                    <h3 class="font-extrabold text-xl mb-0.5 text-slate-800">매매수급동향</h3>
+                    <p class="text-[11px] text-slate-400 font-medium mb-8">100 미만: 매수자 우위</p>
+                    <div id="supply-demand-list" class="space-y-6">
+                        <!-- JS로 삽입 -->
+                    </div>
+                </div>
+
+                <!-- Vacancy & Yield -->
+                <div class="col-span-3 grid grid-cols-2 gap-6">
+                    <div class="bg-white rounded-[4px] p-6 border border-slate-100 shadow-sm">
+                        <h3 class="font-extrabold text-lg mb-6 flex items-center gap-2">
+                            <i data-lucide="building-2" class="text-purple-600 w-4 h-4"></i> 상업용 부동산 공실률 (%)
+                        </h3>
+                        <div id="vacancy-chart" class="flex justify-between items-end h-36 gap-4">
+                            <!-- JS로 삽입 -->
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-[4px] p-6 border border-slate-100 shadow-sm">
+                        <h3 class="font-extrabold text-lg mb-6 flex items-center gap-2">
+                            <i data-lucide="pie-chart" class="text-emerald-600 w-4 h-4"></i> 부동산 투자수익률 (%)
+                        </h3>
+                        <div id="yield-list" class="space-y-5">
+                            <!-- JS로 삽입 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const financeData = {
+            kr: [
+                { name: '기준금리', value: '3.50', change: '0.00', status: 'stable' },
+                { name: '국고채 3년', value: '3.32', change: '-0.05', status: 'down' },
+                { name: '은행채 5년', value: '3.85', change: '+0.02', status: 'up' },
+            ],
+            us: [
+                { name: '기준금리', value: '5.50', change: '0.00', status: 'stable' },
+                { name: '국채 2년물', value: '4.72', change: '+0.04', status: 'up' },
+                { name: '국채 10년물', value: '4.35', change: '-0.01', status: 'down' },
+            ],
+            forex: [
+                { name: '원/달러', value: '1,345.5', change: '+2.5', status: 'up' },
+                { name: '원/엔(100엔)', value: '892.3', change: '-1.2', status: 'down' },
+                { name: '원/유로', value: '1,458.2', change: '+0.8', status: 'up' },
+            ],
+            macro: [
+                { name: '소비자물가', value: '3.1%', status: 'stable' },
+                { name: 'KRX 건설', value: '642.15', change: '+1.2%', status: 'up' },
+                { name: 'KRX 리츠', value: '1,052.4', change: '-0.8%', status: 'down' }
+            ]
+        };
+
+        const realEstateIndices = [
+            { date: '02.26', sales: 98.2, rent: 95.1 },
+            { date: '03.04', sales: 98.1, rent: 95.3 },
+            { date: '03.11', sales: 98.0, rent: 95.5 },
+            { date: '03.18', sales: 97.9, rent: 95.8 },
+            { date: '03.25', sales: 98.0, rent: 96.2 },
+            { date: '04.01', sales: 98.2, rent: 96.5 },
+        ];
+
+        const supplyDemand = [
+            { area: '서울', value: 88.5 },
+            { area: '경기', value: 92.1 },
+            { area: '전국', value: 87.2 },
+        ];
+
+        const commercialVacancy = [
+            { quarter: '23.3Q', office: 9.2, medium: 13.5 },
+            { quarter: '23.4Q', office: 8.8, medium: 13.2 },
+            { quarter: '24.1Q', office: 8.5, medium: 13.8 },
+        ];
+
+        const investmentYield = [
+            { type: '오피스', income: 4.2, capital: 1.5 },
+            { type: '중대형상가', income: 3.8, capital: -0.5 },
+            { type: '소규모상가', income: 3.5, capital: -0.8 },
+        ];
+
+        function renderFinanceGrid() {
+            const container = document.getElementById('finance-grid');
+            const sections = [
+                { title: '한국 금리', items: financeData.kr, icon: 'globe', color: 'bg-blue-600' },
+                { title: '미국 금리', items: financeData.us, icon: 'dollar-sign', color: 'bg-indigo-600' },
+                { title: '환율', items: financeData.forex, icon: 'activity', color: 'bg-amber-500' },
+                { title: '시장 지표', items: financeData.macro, icon: 'trending-up', color: 'bg-rose-500' }
+            ];
+
+            container.innerHTML = sections.map(sec => `
+                <div class="bg-white rounded-[4px] p-4 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="p-1.5 rounded-[4px] ${sec.color}">
+                            <i data-lucide="${sec.icon}" class="text-white w-3.5 h-3.5"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-[13px]">${sec.title}</h3>
+                    </div>
+                    <div class="space-y-3">
+                        ${sec.items.map(item => `
+                            <div class="flex justify-between items-center">
+                                <span class="text-[11px] text-slate-500 font-medium">${item.name}</span>
+                                <div class="text-right">
+                                    <div class="font-bold text-slate-900 text-xs">${item.value}</div>
+                                    ${item.change ? `
+                                        <div class="text-[9px] font-bold flex items-center justify-end gap-0.5 ${item.status === 'up' ? 'text-red-500' : item.status === 'down' ? 'text-blue-500' : 'text-slate-400'}">
+                                            <i data-lucide="${item.status === 'up' ? 'trending-up' : 'trending-down'}" class="w-2 h-2"></i>
+                                            ${item.change}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderPriceIndexChart() {
+            const overlay = document.getElementById('chart-overlay');
+            const salesPath = document.getElementById('sales-path');
+            const rentPath = document.getElementById('rent-path');
+            const containerHeight = 224; // h-56
+            
+            let salesPoints = [];
+            let rentPoints = [];
+            
+            overlay.innerHTML = realEstateIndices.map((d, i) => {
+                const sH = (d.sales - 94) * 14; 
+                const rH = (d.rent - 94) * 14;
+                const xPos = (i / (realEstateIndices.length - 1)) * 100;
+                
+                salesPoints.push(`${xPos}% ${containerHeight - sH}`);
+                rentPoints.push(`${xPos}% ${containerHeight - rH}`);
+
+                return `
+                    <div class="flex-1 flex flex-col items-center relative h-full">
+                        <div class="absolute w-[1px] h-full bg-slate-100 left-1/2 -translate-x-1/2 opacity-20"></div>
+                        <div style="bottom: ${sH}px" class="absolute w-2.5 h-2.5 bg-blue-600 rounded-full z-10 shadow border-2 border-white transform -translate-x-1/2 left-1/2">
+                            <span class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black text-blue-600 bg-white/70 px-0.5 rounded">${d.sales}</span>
+                        </div>
+                        <div style="bottom: ${rH}px" class="absolute w-2.5 h-2.5 bg-emerald-500 rounded-full z-10 shadow border-2 border-white transform -translate-x-1/2 left-1/2">
+                            <span class="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[9px] font-black text-emerald-600 bg-white/80 px-0.5 rounded">${d.rent}</span>
+                        </div>
+                        <span class="absolute bottom-[-32px] text-[10px] font-bold text-slate-400">${d.date}</span>
+                    </div>
+                `;
+            }).join('');
+
+            setTimeout(() => {
+                const currentWidth = document.getElementById('line-chart-svg').clientWidth;
+                const pointsToFixedPath = (pts) => {
+                    return "M " + pts.map((p, idx) => {
+                        const parts = p.split(' ');
+                        const x = (parseFloat(parts[0]) / 100) * (currentWidth); 
+                        return `${x} ${parts[1]}`;
+                    }).join(" L ");
+                };
+                salesPath.setAttribute('d', pointsToFixedPath(salesPoints));
+                rentPath.setAttribute('d', pointsToFixedPath(rentPoints));
+            }, 50);
+        }
+
+        function renderSupplyDemand() {
+            const container = document.getElementById('supply-demand-list');
+            container.innerHTML = supplyDemand.map(item => `
+                <div>
+                    <div class="flex justify-between items-end mb-1.5 text-[11px] font-black">
+                        <span class="text-slate-700">${item.area}</span>
+                        <span class="text-blue-600 text-base">${item.value}</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-600 rounded-full" style="width: ${item.value}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderVacancy() {
+            const container = document.getElementById('vacancy-chart');
+            container.innerHTML = commercialVacancy.map(v => `
+                <div class="flex-1 flex flex-col items-center">
+                    <div class="flex items-end gap-1.5 h-28">
+                       <div style="height: ${v.office * 8}%" class="w-4 bg-indigo-500 rounded-t-md relative">
+                         <span class="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] font-bold text-indigo-500">${v.office}</span>
+                       </div>
+                       <div style="height: ${v.medium * 8}%" class="w-4 bg-purple-500 rounded-t-md relative">
+                         <span class="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] font-bold text-purple-600">${v.medium}</span>
+                       </div>
+                    </div>
+                    <span class="text-[9px] font-black text-slate-400 mt-3">${v.quarter}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderYields() {
+            const container = document.getElementById('yield-list');
+            container.innerHTML = investmentYield.map(y => `
+                <div class="flex flex-col gap-1.5">
+                    <div class="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>${y.type}</span>
+                        <span>임대 ${y.income}% + 매매 ${y.capital}% = <span class="text-slate-900 font-black">${(y.income + y.capital).toFixed(1)}%</span></span>
+                    </div>
+                    <div class="w-full h-4 flex rounded-[4px] overflow-hidden bg-slate-100">
+                        <div style="width: ${y.income * 12}%" class="bg-emerald-500"></div>
+                        <div style="width: ${Math.max(0, y.capital) * 12}%" class="bg-blue-400"></div>
+                        ${y.capital < 0 ? `<div style="width: ${Math.abs(y.capital) * 12}%" class="bg-rose-400"></div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.onload = function() {
+            document.getElementById('last-updated').innerText = new Date().toLocaleString('ko-KR');
+            renderFinanceGrid();
+            renderPriceIndexChart();
+            renderSupplyDemand();
+            renderVacancy();
+            renderYields();
+            lucide.createIcons();
+            window.addEventListener('resize', renderPriceIndexChart);
+        };
+    </script>
+</body>
+</html>

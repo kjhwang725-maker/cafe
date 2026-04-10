@@ -1,9 +1,11 @@
-name: Update Ticker
+# Secrets: ECOS_API_KEY (필수), REB_API_KEY (선택·한국부동산원 R-ONE)
+name: Update Dashboard
 
 on:
   schedule:
-    - cron: "0 * * * *"      # 1시간마다 자동 실행
-  workflow_dispatch:           # GitHub UI에서 수동 실행 가능
+    # 매일 한국시간 09:00 (KST = UTC+9 → GitHub cron은 UTC 기준 00:00)
+    - cron: "0 0 * * *"
+  workflow_dispatch: # GitHub UI에서 수동 실행 가능
 
 permissions:
   contents: write
@@ -38,14 +40,41 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: 한글 폰트 설치
-        run: sudo apt-get install -y fonts-noto-cjk
-
       - name: 의존성 설치
         run: pip install -r requirements.txt
 
-      - name: 전광판 이미지 생성
-        run: python scripts/generate_ticker.py
+      - name: REB API 키를 config/reb_api.json에 병합 (선택)
+        env:
+          REB_API_KEY: ${{ secrets.REB_API_KEY }}
+        run: |
+          python3 << 'PY'
+          import json, os
+          k = os.environ.get("REB_API_KEY", "").strip()
+          if not k:
+              print("REB_API_KEY 비어 있음 — 한국은행.md·reb_api.json 로컬과 동일하게 쓰려면 Secrets에 등록")
+              raise SystemExit(0)
+          p = "config/reb_api.json"
+          cfg = {"api_key": k, "tables": {}}
+          if os.path.isfile(p):
+              with open(p, encoding="utf-8") as f:
+                  cfg = json.load(f)
+              cfg["api_key"] = k
+          os.makedirs("config", exist_ok=True)
+          with open(p, "w", encoding="utf-8") as f:
+              json.dump(cfg, f, ensure_ascii=False, indent=2)
+          print("config/reb_api.json api_key 반영됨")
+          PY
+
+      - name: 전광판 데이터·페이지 생성
+        env:
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+          REB_API_KEY: ${{ secrets.REB_API_KEY }}
+        run: python scripts/generate_dashboard.py
+
+      - name: index 화면 캡처 → docs/ticker.png
+        run: |
+          python -m playwright install chromium --with-deps
+          python scripts/capture_ticker.py
 
       - name: Pages 아티팩트 업로드
         uses: actions/upload-pages-artifact@v3
@@ -56,15 +85,15 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-      - name: 저장소에 ticker.png 반영
+      - name: 저장소에 data.json·ticker.png 반영
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/ticker.png
+          git add docs/data.json docs/ticker.png
           if git diff --staged --quiet; then
-            echo "ticker.png 변경 없음"
+            echo "data.json / ticker.png 변경 없음"
           else
-            git commit -m "chore: ticker.png $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git commit -m "chore: data.json & ticker.png $(date -u +'%Y-%m-%d %H:%M UTC')"
             git pull --rebase origin main
             git push
           fi

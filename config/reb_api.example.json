@@ -1,0 +1,47 @@
+{
+  "api_key": "",
+  "comment": "reb_api.json 으로 복사 후 api_key·tables 채움. STATBL_ID(통계표코드)는 R-ONE 통계코드 검색(https://www.reb.or.kr/r-one/portal/openapi/openApiGuideCdPage.do)에서 통계표명으로 찾습니다. 요청 파라미터는 개발가이드(https://www.reb.or.kr/r-one/portal/openapi/openApiDevPage.do)·각 통계표 명세 참고.",
+  "tables": {
+    "weekly_sale_lease": {
+      "STATBL_ID": "",
+      "DTACYCLE_CD": "WW",
+      "WRTTIME_IDTFR_ID": "",
+      "comment": "주간 아파트 매매·전세 가격지수(전국 등). 명세에 맞게 ITM_ID, CLS_ID 등 추가 파라미터를 넣을 수 있습니다."
+    },
+    "supply_demand": {
+      "STATBL_ID": "A_2024_00076",
+      "DTACYCLE_CD": "MM",
+      "comment": "(월) 매매수급동향_아파트(100 기준). 통계표코드 예시 A_2024_00076."
+    },
+    "housing_apartment_sale": {
+      "STATBL_ID": "A_2024_00045",
+      "DTACYCLE_CD": "MM",
+      "ITM_ID": "100001",
+      "regions": [
+        { "key": "seoul", "CLS_ID": "500008" },
+        { "key": "gyeonggi", "CLS_ID": "500009" }
+      ],
+      "comment": "(월) 매매가격지수_아파트 — regions 에 광역 CLS_ID. key 는 seoul|gyeonggi."
+    },
+    "commercial_vacancy": {
+      "DTACYCLE_CD": "QY",
+      "comment": "상업용 공실률: R-ONE 명세상 학기 주기는 QY(분기 QQ 아님). series 에 표마다 STATBL_ID·label. 단일 표는 최상위 STATBL_ID. 오피스는 TT244763134428698.",
+      "series": [
+        { "label": "소규모 상가", "STATBL_ID": "T241833134686576" },
+        { "label": "오피스", "STATBL_ID": "TT244763134428698" },
+        { "label": "중대형 상가", "STATBL_ID": "T249633134845544" },
+        { "label": "집합상가", "STATBL_ID": "T243283134931290" }
+      ]
+    },
+    "investment_return": {
+      "DTACYCLE_CD": "QY",
+      "comment": "임대 수익률(유형별). 소규모상가·오피스·중대형상가·집합상가 등 series 로 통계표 분리.",
+      "series": [
+        { "label": "소규모 상가", "STATBL_ID": "T246253134913401" },
+        { "label": "오피스", "STATBL_ID": "T245883135037859" },
+        { "label": "중대형 상가", "STATBL_ID": "T242083134887473" },
+        { "label": "집합상가", "STATBL_ID": "T246393134978815" }
+      ]
+    }
+  }
+}

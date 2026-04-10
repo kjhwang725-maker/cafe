@@ -1,0 +1,47 @@
+{
+  "api_key": "",
+  "comment": "api_key 는 비워 두면 한국은행.md·환경변수 REB_API_KEY 를 사용합니다.",
+  "tables": {
+    "weekly_sale_lease": {
+      "STATBL_ID": "",
+      "DTACYCLE_CD": "WW",
+      "WRTTIME_IDTFR_ID": "",
+      "comment": "주간 아파트 매매·전세 가격지수(전국 등)."
+    },
+    "supply_demand": {
+      "STATBL_ID": "A_2024_00076",
+      "DTACYCLE_CD": "MM",
+      "comment": "(월) 매매수급동향_아파트(100 기준)"
+    },
+    "housing_apartment_sale": {
+      "STATBL_ID": "A_2024_00045",
+      "DTACYCLE_CD": "MM",
+      "ITM_ID": "100001",
+      "regions": [
+        { "key": "seoul", "CLS_ID": "500008" },
+        { "key": "gyeonggi", "CLS_ID": "500009" }
+      ],
+      "comment": "(월) 매매가격지수_아파트 — 서울·경기 광역(지수)"
+    },
+    "commercial_vacancy": {
+      "DTACYCLE_CD": "QY",
+      "comment": "상업용 공실률(4개 통계표 병합).",
+      "series": [
+        { "label": "소규모 상가", "STATBL_ID": "T241833134686576" },
+        { "label": "오피스", "STATBL_ID": "TT244763134428698" },
+        { "label": "중대형 상가", "STATBL_ID": "T249633134845544" },
+        { "label": "집합상가", "STATBL_ID": "T243283134931290" }
+      ]
+    },
+    "investment_return": {
+      "DTACYCLE_CD": "QY",
+      "comment": "임대 수익률(유형별). series 에 표별 STATBL_ID.",
+      "series": [
+        { "label": "소규모 상가", "STATBL_ID": "T246253134913401" },
+        { "label": "오피스", "STATBL_ID": "T245883135037859" },
+        { "label": "중대형 상가", "STATBL_ID": "T242083134887473" },
+        { "label": "집합상가", "STATBL_ID": "T246393134978815" }
+      ]
+    }
+  }
+}
