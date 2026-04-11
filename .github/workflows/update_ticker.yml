@@ -1,19 +1,14 @@
-# Secrets: ECOS_API_KEY (필수), REB_API_KEY (선택·한국부동산원 R-ONE)
+# GitHub Actions 비활성화 — 로컬 작업 스케줄러(cafe_door.bat)로 대체
+# 재활성화: on.schedule 주석 해제
 name: Update Dashboard
 
 on:
-  schedule:
-    - cron: "0 0 * * *"   # 매일 00:00 UTC = 한국 09:00
+  # schedule:
+  #   - cron: "0 0 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   build:
@@ -66,11 +61,6 @@ jobs:
           python -m playwright install chromium --with-deps
           python scripts/capture_ticker.py --wait-ms 4000
 
-      - name: Pages 아티팩트 업로드
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
-
       - name: 저장소에 data.json·ticker.png 반영
         run: |
           git config user.name "github-actions[bot]"
@@ -83,18 +73,3 @@ jobs:
             git pull --rebase origin main
             git push
           fi
-
-  deploy:
-    name: GitHub Pages 배포
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4

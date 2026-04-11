@@ -101,9 +101,10 @@ def main() -> None:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
             # index.html 금리 3열은 min-[1001px]:grid-cols-3 — 뷰포트 1001 미만이면 PNG만 1열로 찍힘
+            # device_scale_factor=3: 본문 폭(740px) × 3 = 2220px — 카페 대문 실표시 740px에 맞춤
             context = browser.new_context(
                 viewport={"width": 1100, "height": 1200},
-                device_scale_factor=2,
+                device_scale_factor=3,
             )
             page = context.new_page()
             # networkidle 은 CDN·차트 때문에 끝나지 않아 CI에서 타임아웃( exit 1 ) 날 수 있음

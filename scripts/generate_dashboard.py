@@ -72,24 +72,13 @@ def _delta_pp_monthly_mom(rows: list[dict]) -> float | None:
     return round(last.value - prev, 4)
 
 
-def _delta_pp_daily_vs_prev_month(rows: list[dict]) -> float | None:
-    """일별 시계열: 최신일 − 직전 연·월(전월) 구간의 마지막 관측일(%p)."""
+def _delta_vs_previous_observation(rows: list[dict]) -> float | None:
+    """일별 시계열: 최신 관측값 − 직전 관측값 (공휴·주말로 끊기면 직전 영업일 데이터와 비교)."""
     pts = sorted(rows_to_points(rows), key=lambda p: p.time)
-    if not pts:
+    if len(pts) < 2:
         return None
-    last = pts[-1]
-    if len(last.time) != 8:
-        return None
-    y, m = int(last.time[:4]), int(last.time[4:6])
-    pm, py = m - 1, y
-    if pm == 0:
-        pm, py = 12, y - 1
-    prefix = f"{py:04d}{pm:02d}"
-    prev_in_month = [p for p in pts if p.time.startswith(prefix)]
-    if not prev_in_month:
-        return None
-    prev_v = prev_in_month[-1].value
-    return round(last.value - prev_v, 4)
+    last, prev = pts[-1], pts[-2]
+    return round(last.value - prev.value, 4)
 
 
 def build_payload() -> dict:
@@ -109,7 +98,8 @@ def build_payload() -> dict:
         "미국 단기금리는 같은 표의 단기금리(IR3TIB)로, 정책·단기 시장 금리에 가깝습니다(만기 2년 국채와 동일하지 않을 수 있음).",
         "ECOS 「일별 시장금리」(817Y002)에는 은행채 5년·AAA 무보증 항목이 없어 국고채(5년)로 표시합니다.",
         "코픽스 전용 시리즈가 없어 「예금은행 대출금리(신규취급액)」 변동형 주택담보대출 금리를 참고용으로 표시합니다.",
-        "한국 기준금리·국고채(3·5년) 증감은 전월 대비(%p)이며, 국고채는 직전 월의 마지막 영업일 관측치와 비교합니다.",
+        "한국 기준금리 증감은 전월 대비(%p)입니다. 국고채(3·5년)·환율 등 일별 시리즈 증감은 직전 관측일 대비이며, "
+        "당일 미공시 시 마지막 관측일 수치를 씁니다.",
     ]
 
     series: dict[str, dict] = {}
@@ -129,7 +119,7 @@ def build_payload() -> dict:
 
     r = _rows(f"1/100/817Y002/D/{d_start_mom}/{d_end}/010200000")
     t, v = last_data_value(r)
-    d_g3 = _delta_pp_daily_vs_prev_month(r)
+    d_g3 = _delta_vs_previous_observation(r)
     series["kr_gov_3y"] = {
         "label": "국고채 3년",
         "value": _fmt_num(v, 2),
@@ -141,7 +131,7 @@ def build_payload() -> dict:
 
     r = _rows(f"1/100/817Y002/D/{d_start_mom}/{d_end}/010200001")
     t, v = last_data_value(r)
-    d_g5 = _delta_pp_daily_vs_prev_month(r)
+    d_g5 = _delta_vs_previous_observation(r)
     series["kr_gov_5y"] = {
         "label": "국고채 5년 (※은행채 5년·AAA 미수록)",
         "value": _fmt_num(v, 2),
@@ -158,6 +148,7 @@ def build_payload() -> dict:
         "value": _fmt_num(v, 3),
         "unit": "%",
         "time": t,
+        "delta_pp": _delta_vs_previous_observation(r),
         "note": "817Y002·010502000·일",
     }
 
@@ -168,6 +159,7 @@ def build_payload() -> dict:
         "value": _fmt_num(v, 3),
         "unit": "%",
         "time": t,
+        "delta_pp": _delta_vs_previous_observation(r),
         "note": "817Y002·010101000·일",
     }
 
@@ -262,6 +254,7 @@ def build_payload() -> dict:
             "value": _fmt_num(v, 2) if v else None,
             "unit": "원",
             "time": t,
+            "delta_pp": _delta_vs_previous_observation(r),
             "note": f"731Y001·{code}·일",
         }
 

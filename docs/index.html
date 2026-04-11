@@ -24,14 +24,17 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  html {
+    background-color: #ffffff;
+  }
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    letter-spacing: -0.02em; 
-    background-color: #f8fafc;
+    letter-spacing: -0.02em;
+    background-color: #ffffff;
     line-height: 1.6;
   }
   .fixed-container {
-    width: 836px;
+    width: 740px;
     max-width: 100%;
     margin: 0 auto;
     padding: 40px 20px; 
@@ -51,7 +54,7 @@
   /* ticker.png 캡처 전용: 헤더·금리 3열·시장지표만 (부동산 마켓 분석 제외) */
   #ticker-board {
     width: 100%;
-    max-width: 836px;
+    max-width: 740px;
     margin: 0 auto;
   }
 </style>
@@ -122,12 +125,14 @@
             <canvas id="housingChart"></canvas>
           </div>
         </div>
+        <p id="housing-asof" class="mt-4 text-xs text-slate-500 font-medium"></p>
       </div>
 
       <div class="bg-white rounded-2xl p-7 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)] border border-slate-200">
-        <h3 class="font-extrabold text-lg text-slate-900 mb-1">매매수급동향(아파트)</h3>
-        <p class="text-xs text-slate-400 font-medium mb-8" id="sd-hint">100 미만: 매수자 우위 · 지역별 최신</p>
+        <h3 class="font-extrabold text-sm text-slate-900 mb-1 leading-tight">매매수급동향(아파트)</h3>
+        <p class="text-xs text-slate-400 font-medium mb-6" id="sd-hint">100 미만: 매수자 우위 · 지역별 최신</p>
         <div id="supply-demand-list" class="space-y-6"></div>
+        <p id="sd-asof" class="mt-6 text-xs text-slate-500 font-medium"></p>
       </div>
 
       <div class="col-span-1 grid grid-cols-1 gap-6 min-[901px]:col-span-3 min-[901px]:grid-cols-2">
@@ -136,12 +141,14 @@
             <div class="p-1.5 bg-purple-100 rounded-lg"><i data-lucide="building-2" class="text-purple-600 w-4 h-4"></i></div> 상업용 부동산 공실률 (%)
           </h3>
           <div id="rone-vacancy-wrap" class="relative w-full min-h-[11rem] overflow-visible"></div>
+          <p id="vacancy-asof" class="mt-3 text-xs text-slate-500 font-medium"></p>
         </div>
         <div class="bg-white rounded-2xl p-7 border border-slate-200 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)]">
           <h3 class="font-extrabold text-base text-slate-900 mb-6 flex items-center gap-2.5">
             <div class="p-1.5 bg-emerald-100 rounded-lg"><i data-lucide="pie-chart" class="text-emerald-600 w-4 h-4"></i></div> 부동산 투자수익률 (%)
           </h3>
           <div id="rone-inv-wrap" class="relative w-full min-h-[11rem] overflow-visible"></div>
+          <p id="inv-asof" class="mt-3 text-xs text-slate-500 font-medium"></p>
         </div>
       </div>
     </div>
@@ -214,9 +221,78 @@
 
   function yyDotMmFromTime(t) {
     if (!t || t.length < 6) return "";
-    var y = t.slice(0, 4);
-    var m = t.slice(4, 6);
+    var d = String(t).replace(/\D/g, "");
+    if (d.length < 6) return "";
+    var y = d.slice(0, 4);
+    var m = d.slice(4, 6);
     return "'" + y.slice(2) + "." + m;
+  }
+
+  /** YYYYMM(6자리) → '2026년 2월' */
+  function ymDigitsToKrLong(d6) {
+    var d = String(d6 == null ? "" : d6).replace(/\D/g, "").slice(0, 6);
+    if (d.length < 6) return "";
+    var y = parseInt(d.slice(0, 4), 10);
+    var mo = parseInt(d.slice(4, 6), 10);
+    if (isNaN(y) || isNaN(mo) || mo < 1 || mo > 12) return "";
+    return y + "년 " + mo + "월";
+  }
+
+  function latestYmFromHousingLabels(labels) {
+    var labs = labels || [];
+    if (!labs.length) return "";
+    var last = String(labs[labs.length - 1] || "");
+    return last.replace(/\D/g, "").slice(0, 6);
+  }
+
+  function maxYmFromSupplyRegions(regions) {
+    var max = "";
+    (regions || []).forEach(function (row) {
+      var t = row.time;
+      if (t == null || t === "") return;
+      var d6 = String(t).replace(/\D/g, "").slice(0, 6);
+      if (d6.length === 6 && d6 > max) max = d6;
+    });
+    return max;
+  }
+
+  function maxYmFromLabelList(labels) {
+    var max = "";
+    (labels || []).forEach(function (lab) {
+      var d6 = String(lab == null ? "" : lab).replace(/\D/g, "").slice(0, 6);
+      if (d6.length === 6 && d6 > max) max = d6;
+    });
+    return max;
+  }
+
+  /** ECOS note 끝이 「·일」이면 일별 통계 → ('26.04.10), 「·월」이면 ('26.04) */
+  function isDailySeriesNote(note) {
+    if (note == null || note === "") return false;
+    var parts = String(note).split("·");
+    var last = parts[parts.length - 1].replace(/\s/g, "");
+    return last === "일";
+  }
+
+  function yyDotMmDdFromTime(t) {
+    var d = String(t).replace(/\D/g, "");
+    if (d.length < 8) return "";
+    var y = d.slice(0, 4);
+    var m = d.slice(4, 6);
+    var day = d.slice(6, 8);
+    return "'" + y.slice(2) + "." + m + "." + day;
+  }
+
+  function formatSeriesTime(s) {
+    if (!s || s.time == null || s.time === "") return "";
+    var raw = String(s.time);
+    var digits = raw.replace(/\D/g, "");
+    if (isDailySeriesNote(s.note)) {
+      if (digits.length >= 8) return yyDotMmDdFromTime(digits.slice(0, 8));
+      if (digits.length >= 6) return yyDotMmFromTime(digits.slice(0, 6));
+      return "";
+    }
+    if (digits.length >= 6) return yyDotMmFromTime(digits.slice(0, 6));
+    return "";
   }
 
   function krRateChangeLine(delta_pp) {
@@ -271,7 +347,7 @@
           "</div>"
       );
     }
-    var dt = yyDotMmFromTime(s.time);
+    var dt = formatSeriesTime(s);
     var val = parseFloat(String(s.value).replace(/\s/g, "").replace(/,/g, ""));
     if (isNaN(val)) {
       return (
@@ -319,7 +395,7 @@
           "</div>"
       );
     }
-    var dt = yyDotMmFromTime(s.time);
+    var dt = formatSeriesTime(s);
     var u = String(s.unit || "").trim();
     if (u === "2020=100") u = "";
     var v = s.value;
@@ -487,7 +563,7 @@
     if (legendItems && legendItems.length > 1) {
       var leg = document.createElement("div");
       leg.className =
-        "flex flex-nowrap justify-center items-center gap-x-4 gap-y-1 mt-2 text-[11px] font-semibold text-slate-600 overflow-x-auto pb-0.5";
+        "flex flex-nowrap justify-center items-center gap-x-2.5 gap-y-1 mt-2 text-[8px] font-semibold text-slate-600 overflow-x-auto pb-0.5";
       legendItems.forEach(function (item) {
         var span = document.createElement("span");
         span.className = "inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap";
@@ -513,7 +589,7 @@
     if (prev) prev.remove();
     var leg = document.createElement("div");
     leg.className =
-      "js-line-legend flex flex-nowrap justify-center items-center gap-x-4 gap-y-1 mt-2 text-[11px] font-semibold text-slate-600 overflow-x-auto pb-0.5";
+      "js-line-legend flex flex-nowrap justify-center items-center gap-x-3 gap-y-1 mt-2 text-[8px] font-semibold text-slate-600 overflow-x-auto pb-0.5";
     items.forEach(function (item) {
       var span = document.createElement("span");
       span.className = "inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap";
@@ -559,8 +635,7 @@
       var s = data.series || {};
       var ga = data.generated_at || "";
       var datePart = ga.length >= 10 ? ga.slice(0, 10) : "";
-      document.getElementById("generated").textContent =
-        datePart ? datePart + " AM 09:00" : "—";
+      document.getElementById("generated").textContent = datePart || "—";
 
       var krRateDefs = [
         { label: "기준금리", s: s.kr_policy_rate },
@@ -717,9 +792,15 @@
         );
       }
 
+      var housingAsofEl = document.getElementById("housing-asof");
+      var lastHousingYm = latestYmFromHousingLabels(he.labels);
+      var krHousingDate = ymDigitsToKrLong(lastHousingYm);
+      housingAsofEl.textContent = krHousingDate ? "최신 데이터: " + krHousingDate : "";
+
       var rone = data.rone || {};
 
       var sdEl = document.getElementById("supply-demand-list");
+      var sdAsofEl = document.getElementById("sd-asof");
       var sdBar = rone.supply_demand_bar;
       if (sdBar && (sdBar.regions || []).length) {
         document.getElementById("sd-hint").textContent = "100 미만: 매수자 우위 · 지역별 최신";
@@ -762,6 +843,9 @@
             );
           })
           .join("");
+        var ymSd = maxYmFromSupplyRegions(sdBar.regions);
+        var krSd = ymDigitsToKrLong(ymSd);
+        sdAsofEl.textContent = krSd ? "최신 데이터: " + krSd : "";
       } else if (sdBar && (sdBar.labels || []).length) {
         document.getElementById("sd-hint").textContent = "100 미만: 매수자 우위 · 최근 3개월";
         var sd = sdBar;
@@ -790,7 +874,11 @@
             );
           })
           .join("");
+        var ymSd2 = maxYmFromLabelList(sd.labels);
+        var krSd2 = ymDigitsToKrLong(ymSd2);
+        sdAsofEl.textContent = krSd2 ? "최신 데이터: " + krSd2 : "";
       } else {
+        sdAsofEl.textContent = "";
         sdEl.innerHTML =
           '<p class="text-sm text-slate-400 leading-relaxed">' +
           "수급 데이터 없음. " +
@@ -809,6 +897,9 @@
         wrap.appendChild(cv);
         return cv.getContext("2d");
       }
+
+      var vacancyAsofEl = document.getElementById("vacancy-asof");
+      var invAsofEl = document.getElementById("inv-asof");
 
       if (rone.commercial_vacancy && (rone.commercial_vacancy.labels || []).length) {
         var cv = sliceRoneDataLastN(rone.commercial_vacancy, 5);
@@ -843,7 +934,7 @@
               padding: { top: 22, right: 10, bottom: 6, left: 4 },
             },
             plugins: {
-              legend: { display: !vacLegend, labels: { color: CHART_TEXT, font: { size: 11, family: "'Inter', sans-serif" } } },
+              legend: { display: !vacLegend, labels: { color: CHART_TEXT, font: { size: 7, family: "'Inter', sans-serif" } } },
               datalabels: Object.assign(
                 {
                   clip: false,
@@ -872,7 +963,11 @@
             }),
           }),
         });
+        var vacYm = maxYmFromLabelList(rone.commercial_vacancy.labels);
+        var vacKr = ymDigitsToKrLong(vacYm);
+        vacancyAsofEl.textContent = vacKr ? "최신 데이터: " + vacKr : "";
       } else {
+        vacancyAsofEl.textContent = "";
         document.getElementById("rone-vacancy-wrap").innerHTML =
           '<p class="text-sm text-slate-400 py-6 text-center leading-relaxed">' +
           "공실률 시계열 없음. " +
@@ -922,7 +1017,7 @@
               padding: { top: 22, right: 10, bottom: 6, left: 4 },
             },
             plugins: {
-              legend: { display: !invLegend, labels: { color: CHART_TEXT, font: { size: 11, family: "'Inter', sans-serif" } } },
+              legend: { display: !invLegend, labels: { color: CHART_TEXT, font: { size: 7, family: "'Inter', sans-serif" } } },
               datalabels: Object.assign(
                 {
                   clip: false,
@@ -951,7 +1046,11 @@
             }),
           }),
         });
+        var invYm = maxYmFromLabelList(rone.investment_return.labels);
+        var invKr = ymDigitsToKrLong(invYm);
+        invAsofEl.textContent = invKr ? "최신 데이터: " + invKr : "";
       } else {
+        invAsofEl.textContent = "";
         document.getElementById("rone-inv-wrap").innerHTML =
           '<p class="text-sm text-slate-400 py-6 text-center leading-relaxed">' +
           "투자수익률 없음. " +
