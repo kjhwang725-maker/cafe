@@ -3,16 +3,16 @@ setlocal
 chcp 65001 >nul
 cd /d "%~dp0"
 
-REM Pipeline: dashboard -> capture -> git commit+push -> GitHub Pages auto-deploy
-echo [1/3] generate_dashboard.py
+REM Pipeline: dashboard -> capture -> git commit+push -> jsDelivr cache purge
+echo [1/4] generate_dashboard.py
 call :pyrun scripts\generate_dashboard.py
 if errorlevel 1 goto :fail
 
-echo [2/3] capture_ticker.py
+echo [2/4] capture_ticker.py
 call :pyrun scripts\capture_ticker.py --wait-ms 4000
 if errorlevel 1 goto :fail
 
-echo [3/3] git commit and push
+echo [3/4] git commit and push
 git add docs\data.json docs\index.html docs\ticker.png
 git diff --cached --quiet
 if errorlevel 1 (
@@ -25,6 +25,9 @@ if errorlevel 1 (
 ) else (
     echo 변경 없음 - push 생략.
 )
+
+echo [4/4] jsDelivr 캐시 퍼지
+powershell -NoProfile -Command "try { Invoke-WebRequest -Uri 'https://purge.jsdelivr.net/gh/kjhwang725-maker/cafe@main/docs/ticker.png' -UseBasicParsing | Out-Null; Write-Host 'CDN 퍼지 OK.' } catch { Write-Host '퍼지 실패 (무시):' $_.Exception.Message }"
 
 REM Copy ticker.png to Desktop
 set "SRC=%~dp0docs\ticker.png"
