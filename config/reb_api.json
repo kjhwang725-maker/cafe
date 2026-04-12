@@ -22,26 +22,6 @@
         { "key": "gyeonggi", "CLS_ID": "500009" }
       ],
       "comment": "(월) 매매가격지수_아파트 — 서울·경기 광역(지수)"
-    },
-    "commercial_vacancy": {
-      "DTACYCLE_CD": "QY",
-      "comment": "상업용 공실률(4개 통계표 병합).",
-      "series": [
-        { "label": "소규모 상가", "STATBL_ID": "T241833134686576" },
-        { "label": "오피스", "STATBL_ID": "TT244763134428698" },
-        { "label": "중대형 상가", "STATBL_ID": "T249633134845544" },
-        { "label": "집합상가", "STATBL_ID": "T243283134931290" }
-      ]
-    },
-    "investment_return": {
-      "DTACYCLE_CD": "QY",
-      "comment": "임대 수익률(유형별). series 에 표별 STATBL_ID.",
-      "series": [
-        { "label": "소규모 상가", "STATBL_ID": "T246253134913401" },
-        { "label": "오피스", "STATBL_ID": "T245883135037859" },
-        { "label": "중대형 상가", "STATBL_ID": "T242083134887473" },
-        { "label": "집합상가", "STATBL_ID": "T246393134978815" }
-      ]
     }
   }
 }

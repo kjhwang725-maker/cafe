@@ -273,90 +273,10 @@ def overlay_reit_vs_policy(
     }
 
 
-def _vacancy_tables_configured(tables: dict[str, Any]) -> bool:
-    cv = tables.get("commercial_vacancy") or {}
-    if str(cv.get("STATBL_ID") or "").strip():
-        return True
-    for it in cv.get("series") or []:
-        if str(it.get("STATBL_ID") or "").strip():
-            return True
-    return False
-
-
-def _investment_tables_configured(tables: dict[str, Any]) -> bool:
-    ir = tables.get("investment_return") or {}
-    if str(ir.get("STATBL_ID") or "").strip():
-        return True
-    for it in ir.get("series") or []:
-        if str(it.get("STATBL_ID") or "").strip():
-            return True
-    return False
-
-
-def _slice_labels_datasets_tail(
-    labels: list[str],
-    datasets: list[dict[str, Any]],
-    tail: int,
-) -> tuple[list[str], list[dict[str, Any]]]:
-    """시간순 정렬된 labels·각 dataset.data 의 끝에서 tail개만 유지."""
-    if not labels or tail < 1 or len(labels) <= tail:
-        return labels, datasets
-    start = len(labels) - tail
-    new_labels = labels[start:]
-    new_ds: list[dict[str, Any]] = []
-    for d in datasets:
-        arr = list(d.get("data") or [])
-        if len(arr) != len(labels):
-            new_ds.append(d)
-            continue
-        new_ds.append({**d, "data": arr[start:]})
-    return new_labels, new_ds
-
-
-def _slice_simple_series_tail(
-    labels: list[str],
-    values: list[Any],
-    tail: int,
-) -> tuple[list[str], list[Any]]:
-    if not labels or tail < 1 or len(labels) <= tail:
-        return labels, values
-    start = len(labels) - tail
-    return labels[start:], values[start:]
-
-
-def _merge_vacancy_series(
-    collected: list[tuple[str, list[str], list[float | None]]],
-) -> tuple[list[str], list[dict[str, Any]]]:
-    colors = ["#9333ea", "#2563eb", "#0891b2", "#db2777"]
-    all_labels: set[str] = set()
-    for _, labs, _ in collected:
-        all_labels.update(labs)
-    ordered = sorted(all_labels)
-    datasets: list[dict[str, Any]] = []
-    for i, (name, labs, vals) in enumerate(collected):
-        m = {labs[j]: vals[j] for j in range(len(labs))}
-        data = [m.get(t) for t in ordered]
-        datasets.append(
-            {
-                "label": name,
-                "data": data,
-                "borderColor": colors[i % len(colors)],
-            }
-        )
-    return ordered, datasets
-
-
-def _vacancy_request_params(cv_spec: dict[str, Any], item: dict[str, Any]) -> dict[str, Any]:
-    base = {k: v for k, v in cv_spec.items() if k not in ("comment", "series", "label")}
-    merged = {**base, **{k: v for k, v in item.items() if k != "label"}}
-    return {k: v for k, v in merged.items() if v not in ("", None)}
-
-
 def build_rone_optional() -> dict[str, Any]:
     from reb_client import (
         fetch_stts_tbl_data,
         fetch_stts_tbl_rows_paginated,
-        filter_national_reb_rows,
         load_reb_key,
         parse_rows,
         rows_to_series,
@@ -370,8 +290,6 @@ def build_rone_optional() -> dict[str, Any]:
             "예시는 config/reb_api.example.json 참고.",
             "weekly_sale_lease": None,
             "supply_demand_bar": None,
-            "commercial_vacancy": None,
-            "investment_return": None,
             "tables_configured": None,
         }
 
@@ -387,8 +305,6 @@ def build_rone_optional() -> dict[str, Any]:
                 "message": f"R-ONE 설정 JSON 오류: {e}",
                 "weekly_sale_lease": None,
                 "supply_demand_bar": None,
-                "commercial_vacancy": None,
-                "investment_return": None,
                 "tables_configured": None,
             }
     else:
@@ -410,27 +326,11 @@ def build_rone_optional() -> dict[str, Any]:
         "message": cfg_missing_file_note,
         "weekly_sale_lease": None,
         "supply_demand_bar": None,
-        "commercial_vacancy": None,
-        "investment_return": None,
         "tables_configured": {
             "weekly_sale_lease": _has_statbl("weekly_sale_lease"),
             "supply_demand": _has_statbl("supply_demand"),
-            "commercial_vacancy": _vacancy_tables_configured(tables),
-            "investment_return": _investment_tables_configured(tables),
         },
     }
-
-    def fetch_table(name: str) -> tuple[list[str], list[float | None]] | None:
-        spec = tables.get(name)
-        if not spec or not (spec.get("STATBL_ID") or "").strip():
-            return None
-        params = {k: v for k, v in spec.items() if k not in ("comment", "series", "label") and v not in ("", None)}
-        rows = fetch_stts_tbl_rows_paginated(params)
-        if name == "commercial_vacancy":
-            rows = filter_national_reb_rows(rows)
-        if not rows:
-            return None
-        return rows_to_series(rows)
 
     # 주간 매매·전세: 동일 표에 매매/전세 컬럼이 있으면 파서에서 구분 필요 → 설정으로 분리 호출 권장
     wsl = tables.get("weekly_sale_lease") or {}
@@ -456,81 +356,5 @@ def build_rone_optional() -> dict[str, Any]:
                     "regions": regions,
                     "note": "R-ONE 매매수급동향(아파트)(100 기준). 서울·경기·전국 지역별 최신 월.",
                 }
-
-    cv_spec = tables.get("commercial_vacancy") or {}
-    series_cfg = cv_spec.get("series")
-    if isinstance(series_cfg, list) and any(str(it.get("STATBL_ID") or "").strip() for it in series_cfg):
-        collected: list[tuple[str, list[str], list[float | None]]] = []
-        for item in series_cfg:
-            sid = str(item.get("STATBL_ID") or "").strip()
-            if not sid:
-                continue
-            lbl = str(item.get("label") or sid).strip()
-            params = _vacancy_request_params(cv_spec, item)
-            rows = fetch_stts_tbl_rows_paginated(params)
-            rows = filter_national_reb_rows(rows)
-            if not rows:
-                continue
-            labs, vals = rows_to_series(rows)
-            collected.append((lbl, labs, vals))
-        if collected:
-            u_labels, ds_payload = _merge_vacancy_series(collected)
-            u_labels, ds_payload = _slice_labels_datasets_tail(
-                u_labels, ds_payload, CHART_HISTORY_YEARS * 4
-            )
-            result["commercial_vacancy"] = {
-                "labels": u_labels,
-                "datasets": ds_payload,
-                "note": "R-ONE 상업용 공실률(다중 통계표 병합). 최근 2년(분기).",
-            }
-    elif str(cv_spec.get("STATBL_ID") or "").strip():
-        cv = fetch_table("commercial_vacancy")
-        if cv:
-            labs, vals = _slice_simple_series_tail(
-                cv[0], cv[1], CHART_HISTORY_YEARS * 4
-            )
-            result["commercial_vacancy"] = {
-                "labels": labs,
-                "values": vals,
-                "note": "R-ONE 상업용 공실률 등(설정 표 기준). 최근 2년(분기).",
-            }
-
-    ir_spec = tables.get("investment_return") or {}
-    ir_series_cfg = ir_spec.get("series")
-    if isinstance(ir_series_cfg, list) and any(str(it.get("STATBL_ID") or "").strip() for it in ir_series_cfg):
-        collected_ir: list[tuple[str, list[str], list[float | None]]] = []
-        for item in ir_series_cfg:
-            sid = str(item.get("STATBL_ID") or "").strip()
-            if not sid:
-                continue
-            lbl = str(item.get("label") or sid).strip()
-            params = _vacancy_request_params(ir_spec, item)
-            rows = fetch_stts_tbl_rows_paginated(params)
-            rows = filter_national_reb_rows(rows)
-            if not rows:
-                continue
-            labs, vals = rows_to_series(rows)
-            collected_ir.append((lbl, labs, vals))
-        if collected_ir:
-            u_labels_ir, ds_payload_ir = _merge_vacancy_series(collected_ir)
-            u_labels_ir, ds_payload_ir = _slice_labels_datasets_tail(
-                u_labels_ir, ds_payload_ir, CHART_HISTORY_YEARS * 4
-            )
-            result["investment_return"] = {
-                "labels": u_labels_ir,
-                "datasets": ds_payload_ir,
-                "note": "R-ONE 임대 수익률(소규모상가·오피스·중대형상가·집합상가, 전국). 최근 2년(분기).",
-            }
-    elif str(ir_spec.get("STATBL_ID") or "").strip():
-        ir = fetch_table("investment_return")
-        if ir:
-            labs_i, vals_i = _slice_simple_series_tail(
-                ir[0], ir[1], CHART_HISTORY_YEARS * 4
-            )
-            result["investment_return"] = {
-                "labels": labs_i,
-                "values": vals_i,
-                "note": "R-ONE 투자수익률(설정 표 기준). 최근 2년(분기).",
-            }
 
     return result
