@@ -2,8 +2,8 @@
 한국은행 ECOS API로 카페 전광판용 지표를 수집해 docs/data.json 을 갱신하고,
 docs/ticker_version.txt 의 v 값을 반영해 cafe-door.html(카페 대문용)을 생성합니다.
 
-이미지·데이터 캐시 무효화: 사용자가 매일 docs/ticker_version.txt 의 숫자/문자만 바꾼 뒤 실행하면
-data.json·이미지 URL·대시보드 fetch 에 동일 ?v= 가 적용됩니다.
+이미지 캐시 무효화: docs/ticker_version.txt 의 접두 값에 실행 시각(KST, yyyymmdd_HHMMSS)을 붙여
+? 가 매번 달라지게 합니다(브라우저·jsDelivr·카페 캐시 회피). 같은 날 여러 번 올릴 때는 접두 숫자만 올리면 됩니다.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import json
 import os
 import sys
 from datetime import date, datetime, timedelta, timezone
+from typing import Any
 from urllib.parse import quote
 
 # 프로젝트 루트에서 스크립트 실행 가능하도록
@@ -23,7 +24,7 @@ def _project_root() -> str:
 
 
 def read_ticker_image_version() -> str:
-    """docs/ticker_version.txt 첫 비주석 줄 — 사용자가 매일 바꿔 이미지 URL ?v= 캐시 무효화."""
+    """docs/ticker_version.txt 첫 비주석 줄 — 접두(예: 1, batch2). 실제 ?v= 는 ticker_cache_query_value 참고."""
     path = os.path.join(_project_root(), "docs", "ticker_version.txt")
     try:
         with open(path, encoding="utf-8") as f:
@@ -36,32 +37,85 @@ def read_ticker_image_version() -> str:
     return "1"
 
 
-def write_cafe_door_html(ticker_image_version: str) -> None:
-    """카페에 붙이는 cafe-door.html — jsDelivr ticker.png 에 ?v= 버전 반영."""
-    root = _project_root()
-    v = quote(str(ticker_image_version).strip() or "1", safe="")
-    cdn = "https://cdn.jsdelivr.net/gh/kjhwang725-maker/cafe@main/docs/ticker.png"
-    img_url = f"{cdn}?v={v}"
-    body = (
+def ticker_cache_query_value() -> str:
+    """이미지 URL 쿼리용 v: 접두_read + KST 타임스탬프(매 실행·매일 달라짐)."""
+    base = (read_ticker_image_version() or "1").strip() or "1"
+    try:
+        from zoneinfo import ZoneInfo
+
+        kst = ZoneInfo("Asia/Seoul")
+    except ImportError:
+        kst = timezone(timedelta(hours=9))
+    suf = datetime.now(kst).strftime("%Y%m%d_%H%M%S")
+    return f"{base}_{suf}"
+
+
+# jsDelivr GitHub: 쿼리 ?v= 는 CDN 엣지 캐시 키에 안 쓰이므로, 배포 후에는 반드시 커밋 SHA 를 경로에 넣는다
+# (write_cafe_door_html_jdelivr_commit_sha, cafe_door.bat amend 단계).
+CAFE_JSDELIVR_GH = "kjhwang725-maker/cafe"
+
+
+def cafe_door_html_document(img_src: str) -> str:
+    """카페 대문용 HTML 한 덩어리(img src 만 바꿔서 재사용)."""
+    return (
         '<div style="width:100%;text-align:center;">\n'
         '<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" '
-        'style="width:100%;max-width:835px;margin:0 auto;border-collapse:collapse;">\n'
+        'style="width:100%;max-width:740px;margin:0 auto;border-collapse:collapse;">\n'
         "<tbody>\n<tr>\n"
         '<td align="center" style="padding:0;line-height:0;">\n'
         '<a href="https://cafe.naver.com/speedgoodroom" target="_blank" rel="noopener noreferrer" '
         'style="display:block;border:0;text-decoration:none">'
-        f'<img src="{img_url}" width="835" '
-        'style="width:835px;max-width:100%;height:auto;display:block;margin:0;padding:0;border:0" '
+        f'<img src="{img_src}" width="740" '
+        'style="width:740px;max-width:100%;height:auto;display:block;margin:0;padding:0;border:0" '
         'alt="" loading="eager" decoding="async">'
         "</a>\n"
         "</td>\n</tr>\n</tbody>\n</table>\n</div>\n"
     )
+
+
+def write_cafe_door_html(ticker_image_version: str) -> None:
+    """로컬·미리보기용: @main + ?v= (브라우저 캐시만 완화). 실제 카페 반영은 bat 의 커밋 SHA URL 권장."""
+    root = _project_root()
+    v = quote(str(ticker_image_version).strip() or "1", safe="")
+    cdn = f"https://cdn.jsdelivr.net/gh/{CAFE_JSDELIVR_GH}@main/docs/ticker.png"
+    img_url = f"{cdn}?v={v}"
     out = os.path.join(root, "cafe-door.html")
     with open(out, "w", encoding="utf-8") as f:
-        f.write(body)
+        f.write(cafe_door_html_document(img_url))
     print(f"작성: {out} (ticker ?v={ticker_image_version})")
 
-from ecos_client import last_data_value, load_api_key, rows_to_points, statistic_search
+
+def write_cafe_door_html_jdelivr_commit_sha() -> None:
+    """현재 HEAD 커밋의 docs/ticker.png 를 가리키는 jsDelivr URL(경로에 SHA) — CDN·네이버에서 새 이미지 보장."""
+    import subprocess
+
+    root = _project_root()
+    r = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    if r.returncode != 0 or not (r.stdout or "").strip():
+        print(f"[WARN] git rev-parse 실패 — cafe-door 미갱신: {r.stderr or r.returncode}")
+        return
+    sha = (r.stdout or "").strip()
+    img_src = f"https://cdn.jsdelivr.net/gh/{CAFE_JSDELIVR_GH}@{sha}/docs/ticker.png"
+    out = os.path.join(root, "cafe-door.html")
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(cafe_door_html_document(img_src))
+    print(f"작성: {out} (jsDelivr @{sha[:7]}…/docs/ticker.png)")
+
+from ecos_client import (
+    _time_to_int,
+    fetch_main_indicators,
+    get_realtime_value,
+    last_data_value,
+    load_api_key,
+    rows_to_points,
+    statistic_search,
+)
 
 from real_estate_market import build_housing_rone_apartment_regions, build_rone_optional
 
@@ -135,7 +189,7 @@ def _delta_vs_previous_observation(rows: list[dict]) -> float | None:
 
 def build_payload() -> dict:
     load_api_key()
-    ticker_image_version = read_ticker_image_version()
+    ticker_image_version = ticker_cache_query_value()
     now = datetime.now(KST)
     today = now.date()
     # 일별 ECOS: 공시 시차로 당일만 두면 최신 행이 빠질 수 있어 종료일을 넉넉히 잡음
@@ -360,6 +414,53 @@ def build_payload() -> dict:
         if isinstance(tc, dict):
             tc.pop("commercial_vacancy", None)
             tc.pop("investment_return", None)
+
+    # ECOS 웹 메인 실시간 지표: Open API보다 날짜가 최신이면 환율·일부 금리 덮어쓰기
+    try:
+        rt = fetch_main_indicators()
+    except Exception as e:
+        print(f"[WARN] ECOS 내부 API 실패 — 스킵: {e}")
+        rt = {}
+
+    _RT_OVERLAY: list[tuple[str, str]] = [
+        ("fx_usd", "3010000"),
+        ("kr_gov_3y", "1030000"),
+        ("cd_91", "1080000"),
+    ]
+    for s_key, acc in _RT_OVERLAY:
+        rt_time, rt_val, rt_diff, rt_trade_time = get_realtime_value(rt, acc)
+        if not rt_time or not rt_val:
+            continue
+        prev = series.get(s_key) or {}
+        prev_time = str(prev.get("time") or "")
+        if _time_to_int(rt_time) <= _time_to_int(prev_time):
+            continue
+        try:
+            v_float = float(rt_val.replace(",", ""))
+        except ValueError:
+            continue
+        delta: float | None = None
+        if rt_diff:
+            try:
+                delta = float(rt_diff.replace(",", ""))
+            except ValueError:
+                pass
+        unit = prev.get("unit", "")
+        decimals = 2
+        if unit == "%" and s_key in ("cd_91", "call_rate"):
+            decimals = 3
+        updated: dict[str, Any] = {
+            **prev,
+            "value": _fmt_num(str(v_float), decimals),
+            "time": rt_time,
+            "delta_pp": delta if delta is not None else prev.get("delta_pp"),
+        }
+        if rt_trade_time:
+            updated["trade_time"] = rt_trade_time
+        else:
+            updated.pop("trade_time", None)
+        series[s_key] = updated
+        print(f"[RT] {s_key}: {prev_time} → {rt_time} ({rt_val})")
 
     return {
         "generated_at": now.isoformat(),

@@ -1,7 +1,8 @@
 """
 한국은행 ECOS Open API (StatisticSearch) 클라이언트.
-웹 페이지 스크래핑 대신 공식 JSON API만 사용 (안정·약관 준수).
-인증키: 환경변수 ECOS_API_KEY 우선, 없으면 저장소 루트 `한국은행.md`에서 추출.
+
+Open API(인증키)로 시계열을 받고, ECOS 웹이 쓰는 메인 실시간 지표(JSON)는
+보조로 사용해 당일 환율·일부 시장금리 날짜를 맞춥니다(공표 지연 보완).
 """
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote
 
@@ -107,3 +109,71 @@ def rows_to_points(rows: list[dict[str, Any]]) -> list[SeriesPoint]:
             continue
     out.sort(key=lambda p: _time_to_int(p.time))
     return out
+
+
+# ── ECOS 웹 메인 실시간 지표 (인증키 불필요, Open API보다 당일 반영이 빠른 경우 있음) ──
+
+_INTERNAL_EP = "https://ecos.bok.or.kr/serviceEndpoint/httpService/request.json"
+
+
+def _kst_today_str() -> str:
+    try:
+        from zoneinfo import ZoneInfo
+
+        return datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y%m%d")
+    except Exception:
+        return datetime.now(timezone(timedelta(hours=9))).strftime("%Y%m%d")
+
+
+def fetch_main_indicators() -> dict[str, dict[str, Any]]:
+    """ECOS 메인 페이지 OSUUA03R02 → mainIndicatorList 를 accItem 키로."""
+    import requests
+
+    payload = {
+        "header": {
+            "guidSeq": 1,
+            "trxCd": "OSUUA03R02",
+            "scrId": "IECOSPCM01",
+            "sysCd": "03",
+            "fstChnCd": "WEB",
+            "langDvsnCd": "KO",
+            "envDvsnCd": "D",
+            "sndRspnDvsnCd": "S",
+            "sndDtm": _kst_today_str(),
+            "ipAddr": "127.0.0.1",
+            "usrId": "IECOSPC",
+            "pageNum": 1,
+            "pageCnt": 1000,
+        },
+        "data": {"pageNum": 1, "langCd": "ko"},
+    }
+    try:
+        r = requests.post(_INTERNAL_EP, json=payload, timeout=30)
+        r.raise_for_status()
+        j = r.json()
+    except Exception as e:
+        print(f"[WARN] ECOS 내부 API 호출 실패: {e}")
+        return {}
+
+    items = j.get("data", {}).get("mainIndicatorList") or []
+    out: dict[str, dict[str, Any]] = {}
+    for item in items:
+        acc = item.get("accItem", "")
+        out[acc] = item
+    return out
+
+
+def get_realtime_value(
+    indicators: dict[str, dict[str, Any]],
+    acc_item: str,
+) -> tuple[str | None, str | None, str | None, str | None]:
+    """내부 API 한 항목 → (originalTimePeriod, obsValue, difference, tradeTime)."""
+    item = indicators.get(acc_item)
+    if not item:
+        return None, None, None, None
+    t = item.get("originalTimePeriod")
+    v = (item.get("obsValue") or "").strip()
+    d = (item.get("difference") or "").strip()
+    tt = (item.get("tradeTime") or "").strip()
+    trade_time = tt if re.match(r"^\d{1,2}:\d{2}$", tt) else None
+    return t or None, v or None, d or None, trade_time

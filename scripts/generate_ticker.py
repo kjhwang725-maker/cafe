@@ -138,7 +138,7 @@ def generate_image():
     # ── 캔버스 설정 (2줄 × 4열, 2배 해상도) ────────────
     SCALE   = 3           # 3배 해상도로 생성 → 선명도 향상
     COLS    = 4
-    W       = 835 * SCALE
+    W       = 740 * SCALE
     SEG_W   = W // COLS
     PAD_V   = 10   * SCALE
     LBL_H   = 14   * SCALE

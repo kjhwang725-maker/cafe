@@ -139,7 +139,7 @@ def main() -> None:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
             # index.html 금리 3열은 min-[1001px]:grid-cols-3 — 뷰포트 1001 미만이면 PNG만 1열로 찍힘
-            # device_scale_factor=3: 본문 폭(835px) × 3 = 2505px — 카페 대문 실표시 835px에 맞춤
+            # device_scale_factor=3: 본문 폭(740px) × 3 = 2220px — 카페 대문 실표시 740px에 맞춤
             context = browser.new_context(
                 viewport={"width": 1100, "height": 1200},
                 device_scale_factor=3,
