@@ -1,12 +1,15 @@
 """
-docs/index.html 화면을 렌더링해 docs/ticker.png 로 저장합니다 (헤드리스 Chromium 스크린샷).
+docs/index.html 화면을 렌더링해 PNG로 저장합니다 (헤드리스 Chromium 스크린샷).
 
   pip install playwright
   playwright install chromium
 
   python scripts/capture_ticker.py
   python scripts/capture_ticker.py --ticker-only
-  python scripts/capture_ticker.py --output docs/ticker.png --full-page
+  python scripts/capture_ticker.py --output docs/custom.png --full-page
+
+기본 저장: docs/yyyy-mm-dd.png (당일 재실행 시 덮어쓰기). GitHub Pages 호환용으로 동일 내용을 docs/ticker.png 에도 복사합니다.
+-o 로 경로를 직접 주면 해당 파일만 저장하고 ticker.png 는 갱신하지 않습니다.
 
 기본은 브라우저에서 index.html 을 연 것과 동일하게 .fixed-container 전체(헤더~푸터·차트 포함).
 상단 전광판만(카페 썸네일)은 --ticker-only (#ticker-board).
@@ -20,11 +23,13 @@ from __future__ import annotations
 
 import argparse
 import http.server
+import shutil
 import socket
 import socketserver
 import sys
 import threading
 import time
+from datetime import date
 from pathlib import Path
 
 try:
@@ -60,8 +65,14 @@ def _start_docs_server(docs: Path, port: int) -> socketserver.ThreadingTCPServer
 def main() -> None:
     root = _repo_root()
     docs = root / "docs"
-    p = argparse.ArgumentParser(description="index.html → ticker.png 스크린샷")
-    p.add_argument("--output", "-o", type=Path, default=docs / "ticker.png")
+    p = argparse.ArgumentParser(description="index.html → PNG 스크린샷")
+    p.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        default=None,
+        help="저장 경로 (기본: docs/yyyy-mm-dd.png)",
+    )
     p.add_argument(
         "--full-page",
         action="store_true",
@@ -92,7 +103,12 @@ def main() -> None:
     # index.html 의 캐시 무력화 리다이렉트와 동일하게 처음부터 ?_cb= 로 열기
     cb = int(time.time() * 1000)
     url = f"http://127.0.0.1:{port}/index.html?_cb={cb}"
-    out = args.output
+    if args.output is None:
+        out = docs / f"{date.today().isoformat()}.png"
+        mirror_ticker = True
+    else:
+        out = args.output
+        mirror_ticker = False
     if not out.is_absolute():
         out = root / out
 
@@ -145,7 +161,12 @@ def main() -> None:
         httpd.shutdown()
         httpd.server_close()
 
-    print(f"저장: {out}")
+    if mirror_ticker:
+        ticker = docs / "ticker.png"
+        shutil.copy2(out, ticker)
+        print(f"저장: {out} (동일 내용 → {ticker})")
+    else:
+        print(f"저장: {out}")
 
 
 if __name__ == "__main__":
