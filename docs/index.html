@@ -34,10 +34,10 @@
     line-height: 1.6;
   }
   .fixed-container {
-    width: 740px;
+    width: 835px;
     max-width: 100%;
     margin: 0 auto;
-    padding: 40px 20px 16px 20px;
+    padding: 40px 20px 8px 20px;
   }
   @keyframes spin-slow {
     from { transform: rotate(0deg); }
@@ -54,7 +54,7 @@
   /* ticker.png 캡처 전용: 헤더·금리 3열·시장지표만 (부동산 마켓 분석 제외) */
   #ticker-board {
     width: 100%;
-    max-width: 740px;
+    max-width: 835px;
     margin: 0 auto;
   }
 </style>
@@ -137,7 +137,7 @@
     </div>
   </main>
 
-  <footer class="text-center text-sm font-semibold text-slate-400 tracking-tight pt-8 pb-2 mt-2 border-t border-slate-200/80">
+  <footer class="text-center text-sm font-semibold text-slate-400 tracking-tight pt-5 pb-1 mt-1 border-t border-slate-200/80">
     네이버 카페 공간시장
   </footer>
 </div>
@@ -194,6 +194,15 @@
     var d = document.createElement("div");
     d.textContent = s;
     return d.innerHTML;
+  }
+
+  /** 시장 지표에서 제외: 상업용 부동산 공실률, 부동산 투자수익률 */
+  function shouldHideMarketLine(text) {
+    if (text == null || text === "") return false;
+    var l = String(text).replace(/\s+/g, "");
+    if (l.indexOf("상업용") !== -1 && l.indexOf("공실률") !== -1) return true;
+    if (l.indexOf("부동산") !== -1 && l.indexOf("투자수익률") !== -1) return true;
+    return false;
   }
 
   /** 미국·일본 금리: data.json의 rate_decimals와 무관하게 소수 둘째 자리까지 표시 */
@@ -269,13 +278,16 @@
     if (!s || s.time == null || s.time === "") return "";
     var raw = String(s.time);
     var digits = raw.replace(/\D/g, "");
+    var datePart = "";
     if (isDailySeriesNote(s.note)) {
-      if (digits.length >= 8) return yyDotMmDdFromTime(digits.slice(0, 8));
-      if (digits.length >= 6) return yyDotMmFromTime(digits.slice(0, 6));
-      return "";
+      if (digits.length >= 8) datePart = yyDotMmDdFromTime(digits.slice(0, 8));
+      else if (digits.length >= 6) datePart = yyDotMmFromTime(digits.slice(0, 6));
+    } else if (digits.length >= 6) {
+      datePart = yyDotMmFromTime(digits.slice(0, 6));
     }
-    if (digits.length >= 6) return yyDotMmFromTime(digits.slice(0, 6));
-    return "";
+    if (!datePart) return "";
+    if (s.trade_time) return datePart + " " + s.trade_time;
+    return datePart;
   }
 
   function krRateChangeLine(delta_pp) {
@@ -394,7 +406,7 @@
       (dt ? '<div class="mt-1 text-xs font-medium text-slate-500">' + esc("(" + dt + ")") + "</div>" : "") +
       "</div>";
     var sub =
-      s.market_sub && String(s.market_sub).trim()
+      s.market_sub && String(s.market_sub).trim() && !shouldHideMarketLine(s.market_sub)
         ? '<div class="mt-1 max-w-[16rem] text-right text-xs font-medium text-slate-500">' + esc(s.market_sub) + "</div>"
         : '<div class="mt-1">' + krRateChangeLine(s.delta_pp) + "</div>";
     var right =
@@ -425,14 +437,21 @@
     return financeRowMetricHtml(label, s);
   }
 
-  /** 한국·미국·일본 금리·시장 지표 공통 카드. innerClass: 시장 지표 등에서 2열 그리드용 */
-  function financeSectionRates(title, icon, colorClass, rowDefs, innerClass) {
+  /** 한국·미국·일본 금리·시장 지표 공통 카드. innerClass: 시장 지표 등에서 2열 그리드용. footerText: 카드 하단 출처(선택) */
+  function financeSectionRates(title, icon, colorClass, rowDefs, innerClass, footerText) {
     innerClass = innerClass || "space-y-6";
     var inner = rowDefs
       .map(function (def) {
         return financeRowUnified(def.label, def.s);
       })
       .join("");
+    var footer = "";
+    if (footerText) {
+      footer =
+        '<div class="mt-4 pt-3 border-t border-slate-100 text-center text-xs font-medium text-slate-400">' +
+        esc(footerText) +
+        "</div>";
+    }
     return (
       '<div class="min-w-0 bg-white rounded-2xl p-6 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)] border border-slate-200">' +
         '<div class="flex items-center gap-3 mb-6">' +
@@ -452,6 +471,7 @@
         '">' +
         inner +
         "</div>" +
+        footer +
         "</div>"
     );
   }
@@ -557,7 +577,26 @@
     };
   }
 
-  fetch("data.json?v=" + Date.now())
+  function parseTickerVersionTxt(text) {
+    var lines = String(text || "").split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (line && line.charAt(0) !== "#") return line;
+    }
+    return "1";
+  }
+
+  fetch("ticker_version.txt?t=" + Date.now(), { cache: "no-store" })
+    .then(function (r) {
+      return r.ok ? r.text() : "";
+    })
+    .catch(function () {
+      return "";
+    })
+    .then(function (txt) {
+      var v = parseTickerVersionTxt(txt);
+      return fetch("data.json?v=" + encodeURIComponent(v), { cache: "no-store" });
+    })
     .then(function (r) {
       if (!r.ok) throw new Error("data.json 응답 오류 (" + r.status + ")");
       return r.json();
@@ -585,7 +624,9 @@
         { label: (s.fx_eur && s.fx_eur.label) || "원/유로(매매기준)", s: s.fx_eur },
         { label: (s.export_px && s.export_px.label) || "수출물가지수", s: s.export_px },
         { label: (s.ecb_rate && s.ecb_rate.label) || "ECB 정책금리(유로지역)", s: s.ecb_rate },
-      ];
+      ].filter(function (def) {
+        return !shouldHideMarketLine(def.label);
+      });
 
       var jpRateDefs = [
         { label: "기준금리", s: seriesRate2Decimals(s.jp_policy) },
@@ -602,7 +643,8 @@
         "activity",
         "bg-rose-500",
         marketDefs,
-        "grid grid-cols-1 gap-x-10 gap-y-8 min-[721px]:grid-cols-2"
+        "grid grid-cols-1 gap-x-10 gap-y-8 min-[721px]:grid-cols-2",
+        "출처 : 한국은행"
       );
 
       var he = data.housing_ecos || {};

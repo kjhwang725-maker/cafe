@@ -1,0 +1,3 @@
+# 카페 대문·CDN 이미지 캐시를 갱신하려면 아래 숫자/문자만 바꾸세요 (예: 20260413 또는 2, 3 …)
+# generate_dashboard.py 실행 시 cafe-door.html 과 data.json 에 반영됩니다.
+1
