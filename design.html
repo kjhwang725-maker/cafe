@@ -127,27 +127,6 @@
                         <!-- JS로 삽입 -->
                     </div>
                 </div>
-
-                <!-- Vacancy & Yield -->
-                <div class="col-span-3 grid grid-cols-2 gap-6">
-                    <div class="bg-white rounded-[4px] p-6 border border-slate-100 shadow-sm">
-                        <h3 class="font-extrabold text-lg mb-6 flex items-center gap-2">
-                            <i data-lucide="building-2" class="text-purple-600 w-4 h-4"></i> 상업용 부동산 공실률 (%)
-                        </h3>
-                        <div id="vacancy-chart" class="flex justify-between items-end h-36 gap-4">
-                            <!-- JS로 삽입 -->
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-[4px] p-6 border border-slate-100 shadow-sm">
-                        <h3 class="font-extrabold text-lg mb-6 flex items-center gap-2">
-                            <i data-lucide="pie-chart" class="text-emerald-600 w-4 h-4"></i> 부동산 투자수익률 (%)
-                        </h3>
-                        <div id="yield-list" class="space-y-5">
-                            <!-- JS로 삽입 -->
-                        </div>
-                    </div>
-                </div>
             </div>
         </main>
     </div>
@@ -189,18 +168,6 @@
             { area: '서울', value: 88.5 },
             { area: '경기', value: 92.1 },
             { area: '전국', value: 87.2 },
-        ];
-
-        const commercialVacancy = [
-            { quarter: '23.3Q', office: 9.2, medium: 13.5 },
-            { quarter: '23.4Q', office: 8.8, medium: 13.2 },
-            { quarter: '24.1Q', office: 8.5, medium: 13.8 },
-        ];
-
-        const investmentYield = [
-            { type: '오피스', income: 4.2, capital: 1.5 },
-            { type: '중대형상가', income: 3.8, capital: -0.5 },
-            { type: '소규모상가', income: 3.5, capital: -0.8 },
         ];
 
         function renderFinanceGrid() {
@@ -300,47 +267,11 @@
             `).join('');
         }
 
-        function renderVacancy() {
-            const container = document.getElementById('vacancy-chart');
-            container.innerHTML = commercialVacancy.map(v => `
-                <div class="flex-1 flex flex-col items-center">
-                    <div class="flex items-end gap-1.5 h-28">
-                       <div style="height: ${v.office * 8}%" class="w-4 bg-indigo-500 rounded-t-md relative">
-                         <span class="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] font-bold text-indigo-500">${v.office}</span>
-                       </div>
-                       <div style="height: ${v.medium * 8}%" class="w-4 bg-purple-500 rounded-t-md relative">
-                         <span class="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] font-bold text-purple-600">${v.medium}</span>
-                       </div>
-                    </div>
-                    <span class="text-[9px] font-black text-slate-400 mt-3">${v.quarter}</span>
-                </div>
-            `).join('');
-        }
-
-        function renderYields() {
-            const container = document.getElementById('yield-list');
-            container.innerHTML = investmentYield.map(y => `
-                <div class="flex flex-col gap-1.5">
-                    <div class="flex justify-between text-[11px] font-bold text-slate-600">
-                        <span>${y.type}</span>
-                        <span>임대 ${y.income}% + 매매 ${y.capital}% = <span class="text-slate-900 font-black">${(y.income + y.capital).toFixed(1)}%</span></span>
-                    </div>
-                    <div class="w-full h-4 flex rounded-[4px] overflow-hidden bg-slate-100">
-                        <div style="width: ${y.income * 12}%" class="bg-emerald-500"></div>
-                        <div style="width: ${Math.max(0, y.capital) * 12}%" class="bg-blue-400"></div>
-                        ${y.capital < 0 ? `<div style="width: ${Math.abs(y.capital) * 12}%" class="bg-rose-400"></div>` : ''}
-                    </div>
-                </div>
-            `).join('');
-        }
-
         window.onload = function() {
             document.getElementById('last-updated').innerText = new Date().toLocaleString('ko-KR');
             renderFinanceGrid();
             renderPriceIndexChart();
             renderSupplyDemand();
-            renderVacancy();
-            renderYields();
             lucide.createIcons();
             window.addEventListener('resize', renderPriceIndexChart);
         };
