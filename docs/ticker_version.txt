@@ -1,3 +1,4 @@
-# 카페 대문·CDN 이미지 캐시를 갱신하려면 아래 숫자/문자만 바꾸세요 (예: 20260413 또는 2, 3 …)
-# generate_dashboard.py 실행 시 cafe-door.html 과 data.json 에 반영됩니다.
+# 이미지 URL ?v= 값의 앞부분(접두)만 적습니다. 실행할 때마다 KST 날짜·시간이 자동으로 붙어
+# 예전 이미지(캐시) 문제를 줄입니다. 같은 날 여러 번 올릴 때만 숫자를 올리세요 (1 → 2 …).
+# generate_dashboard 실행 시 cafe-door.html·data.json 에 반영됩니다.
 1
