@@ -27,6 +27,7 @@ import tempfile
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 
 def _root() -> Path:
@@ -132,19 +133,35 @@ def _pages_ticker_url(owner: str, repo: str) -> str:
     return f"https://{owner}.github.io/{repo}/ticker.png"
 
 
+def _read_ticker_image_version(project_root: Path) -> str:
+    """docs/ticker_version.txt 첫 비주석 줄 (사용자가 매일 수정)."""
+    p = project_root / "docs" / "ticker_version.txt"
+    try:
+        text = p.read_text(encoding="utf-8")
+    except OSError:
+        return "1"
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            return line[:200]
+    return "1"
+
+
 def _write_cafe_door_html(project_root: Path, owner: str, repo: str) -> None:
-    """GitHub Pages 고정 URL — orphan push 하면 내용만 바뀌고 주소는 그대로라 대문 HTML을 다시 안 붙여도 됨."""
+    """GitHub Pages URL + docs/ticker_version.txt 의 v 로 캐시 무효화 (?v=)."""
     url = _pages_ticker_url(owner, repo)
+    v = quote(_read_ticker_image_version(project_root).strip() or "1", safe="")
+    url = f"{url}?v={v}"
     body = (
         '<div style="width:100%;text-align:center;">\n'
         '<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" '
-        'style="width:100%;max-width:740px;margin:0 auto;border-collapse:collapse;">\n'
+        'style="width:100%;max-width:835px;margin:0 auto;border-collapse:collapse;">\n'
         "<tr>\n"
         '<td align="center" style="padding:0;line-height:0;">\n'
         '<a href="https://cafe.naver.com/speedgoodroom" style="display:block;border:0;text-decoration:none">'
         '<img id="cafe-door-ticker" '
-        f'src="{url}" width="740" '
-        'style="width:740px;max-width:100%;height:auto;display:block;margin:0;padding:0;'
+        f'src="{url}" width="835" '
+        'style="width:835px;max-width:100%;height:auto;display:block;margin:0;padding:0;'
         'border:0;vertical-align:top" alt="" loading="eager" decoding="async">'
         "</a>\n"
         "</td>\n"

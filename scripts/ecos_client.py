@@ -42,19 +42,51 @@ def statistic_search(
 ) -> dict[str, Any]:
     """
     path_suffix: 인증키 이후 경로 전체.
-    예: '1/100/817Y002/D/20260401/20260409/010200000'
+    예: '1/1000/817Y002/D/20260401/20260409/010200000'
     """
     key = load_api_key()
     url = f"{BASE}/{quote(key, safe='')}/json/kr/{path_suffix}"
     return get_json(url, timeout=timeout)
 
 
+def _time_to_int(t: object) -> int:
+    """ECOS TIME(YYYYMM·YYYYMMDD 등)을 비교 가능한 정수로."""
+    d = re.sub(r"\D", "", str(t) if t is not None else "")
+    if not d:
+        return 0
+    try:
+        if len(d) >= 8:
+            return int(d[:8])
+        if len(d) >= 6:
+            return int(d[:6])
+        return int(d)
+    except ValueError:
+        return 0
+
+
 def last_data_value(rows: list[dict[str, Any]]) -> tuple[str | None, str | None]:
-    """TIME, DATA_VALUE of last row (리스트는 시계열 순이라고 가정)."""
+    """값이 있는 행 중 TIME이 가장 최근인 관측의 TIME, DATA_VALUE.
+
+    ECOS는 행 순서가 오름·내림차순일 수 있고, 요청 건수로 잘리면 마지막 행이 최신이 아닐 수 있음.
+    """
     if not rows:
         return None, None
-    last = rows[-1]
-    return last.get("TIME"), last.get("DATA_VALUE")
+    best: dict[str, Any] | None = None
+    best_key = -1
+    for r in rows:
+        v = r.get("DATA_VALUE")
+        if v is None or str(v).strip() == "":
+            continue
+        t = r.get("TIME")
+        if t is None or str(t).strip() == "":
+            continue
+        k = _time_to_int(t)
+        if k >= best_key:
+            best_key = k
+            best = r
+    if best is None:
+        return None, None
+    return best.get("TIME"), best.get("DATA_VALUE")
 
 
 @dataclass
@@ -73,4 +105,5 @@ def rows_to_points(rows: list[dict[str, Any]]) -> list[SeriesPoint]:
             out.append(SeriesPoint(str(r.get("TIME", "")), float(v)))
         except (TypeError, ValueError):
             continue
+    out.sort(key=lambda p: _time_to_int(p.time))
     return out
