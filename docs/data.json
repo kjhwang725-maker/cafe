@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-04-13T11:05:30.558125+09:00",
-  "ticker_image_version": "1_20260413_110530",
+  "generated_at": "2026-04-13T11:08:39.488207+09:00",
+  "ticker_image_version": "1_20260413_110839",
   "series": {
     "kr_policy_rate": {
       "label": "한국 기준금리",
@@ -12,10 +12,10 @@
     },
     "kr_gov_3y": {
       "label": "국고채 3년",
-      "value": "3.36",
+      "value": "3.42",
       "unit": "%",
-      "time": "20260410",
-      "delta_pp": 0.022,
+      "time": "20260413",
+      "delta_pp": 0.06,
       "note": "817Y002·010200000·일"
     },
     "kr_gov_5y": {
