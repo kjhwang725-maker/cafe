@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote
@@ -207,7 +208,7 @@ def build_payload() -> dict:
         "ECOS 「일별 시장금리」(817Y002)에는 은행채 5년·AAA 무보증 항목이 없어 국고채(5년)로 표시합니다.",
         "코픽스 전용 시리즈가 없어 「예금은행 대출금리(신규취급액)」 변동형 주택담보대출 금리를 참고용으로 표시합니다.",
         "한국 기준금리 증감은 전월 대비(%p)입니다. 국고채(3·5년)·환율 등 일별 시리즈 증감은 직전 관측일 대비이며, "
-        "당일 미공시 시 마지막 관측일 수치를 씁니다.",
+        "당일 미공시 시 마지막 관측일 수치를 씁니다. Open API가 당일(KST)로 아직 반영되지 않았을 때는 ECOS 웹 메인 실시간 지표로 일부 항목을 보완합니다.",
     ]
 
     series: dict[str, dict] = {}
@@ -415,12 +416,24 @@ def build_payload() -> dict:
             tc.pop("commercial_vacancy", None)
             tc.pop("investment_return", None)
 
-    # ECOS 웹 메인 실시간 지표: Open API보다 날짜가 최신이면 환율·일부 금리 덮어쓰기
+    # ECOS 웹 메인 실시간 지표: (1) Open API보다 날짜가 더 최신이면 덮어쓰기
+    # (2) Open API의 관측일이 당일(KST)까지 아직 안 올라온 경우에도 RT로 보완(동일 영업일 재조회·시간값 등)
     try:
         rt = fetch_main_indicators()
     except Exception as e:
         print(f"[WARN] ECOS 내부 API 실패 — 스킵: {e}")
         rt = {}
+    if not rt:
+        try:
+            time.sleep(0.5)
+            rt = fetch_main_indicators()
+            if rt:
+                print("[RT] ECOS 내부 API 2차 요청 성공")
+        except Exception as e:
+            print(f"[WARN] ECOS 내부 API 2차 시도 실패: {e}")
+
+    today_yyyymmdd = today.strftime("%Y%m%d")
+    today_int = _time_to_int(today_yyyymmdd)
 
     _RT_OVERLAY: list[tuple[str, str]] = [
         ("fx_usd", "3010000"),
@@ -433,7 +446,12 @@ def build_payload() -> dict:
             continue
         prev = series.get(s_key) or {}
         prev_time = str(prev.get("time") or "")
-        if _time_to_int(rt_time) <= _time_to_int(prev_time):
+        prev_int = _time_to_int(prev_time)
+        rt_int = _time_to_int(rt_time)
+        strictly_newer = rt_int > prev_int
+        open_not_yet_today = prev_int < today_int
+        fill_when_stale = open_not_yet_today and rt_int >= prev_int and rt_int > 0
+        if not strictly_newer and not fill_when_stale:
             continue
         try:
             v_float = float(rt_val.replace(",", ""))
@@ -460,7 +478,8 @@ def build_payload() -> dict:
         else:
             updated.pop("trade_time", None)
         series[s_key] = updated
-        print(f"[RT] {s_key}: {prev_time} → {rt_time} ({rt_val})")
+        tag = "+당일미반영" if (fill_when_stale and not strictly_newer) else ""
+        print(f"[RT] {s_key}: {prev_time} → {rt_time} ({rt_val}){tag}")
 
     return {
         "generated_at": now.isoformat(),
