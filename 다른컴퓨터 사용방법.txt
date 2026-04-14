@@ -1,0 +1,109 @@
+================================================================================
+  카페 전광판 프로젝트 — 다른 컴퓨터에서 사용하기
+================================================================================
+
+이 문서는 현재 폴더 전체를 ZIP 등으로 압축해 옮긴 뒤, 새 PC에서 실행할 때의
+순서를 정리한 것입니다. (Windows 기준)
+
+
+■ 1. 압축·복사할 때
+
+  - 이 프로젝트 폴더 전체를 ZIP으로 묶어 USB·메일·클라우드 등으로 옮깁니다.
+  - 새 PC에서 압축을 풀 때, 경로에 한글이 있어도 되지만 너무 긴 경로는
+    일부 도구에서 문제가 날 수 있으므로 가능하면 짧은 경로(예: C:\work\07_카페전광판)를 권장합니다.
+  - __pycache__ 폴더는 없어도 되며, 다음 PC에서 다시 생성됩니다.
+
+
+■ 2. 새 PC에서 필요한 것
+
+  [필수] Microsoft Windows (배치 파일 .bat 사용)
+  [필수] Python 3.10 이상 권장
+        - 설치 시 "Add Python to PATH"에 체크하는 것이 좋습니다.
+        - 설치 후 명령 프롬프트에서  py -3 --version  또는  python --version 이 되는지 확인합니다.
+
+  [선택] Git
+        - cafe_door.bat 끝에서 Git 커밋·푸시를 하는데, Git이 없으면 해당 단계에서
+          오류가 날 수 있습니다. (데이터만 생성·캡처는 generate_dashboard·capture_ticker 단독 실행 가능)
+
+
+■ 3. 최초 1회 — 파이썬 패키지 설치
+
+  압축을 푼 프로젝트 "루트 폴더"(cafe_door.bat 이 있는 곳)에서, 명령 프롬프트나
+  PowerShell을 열고 순서대로 실행합니다.
+
+    cd (프로젝트 루트 경로)
+
+    py -3 -m pip install --upgrade pip
+    py -3 -m pip install -r requirements.txt
+
+  requirements.txt 에는 requests, yfinance, playwright 가 들어 있습니다.
+
+
+■ 4. 최초 1회 — Playwright(캡처용 브라우저)
+
+  ticker 이미지 생성(capture_ticker.py)을 쓰려면 Chromium 이 필요합니다.
+
+    py -3 -m playwright install chromium
+
+  (전체 설치를 원하면: py -3 -m playwright install)
+
+
+■ 5. 최초 1회 — 한국은행 ECOS API 인증키
+
+  대시보드 데이터(generate_dashboard.py)는 한국은행 ECOS Open API 키가 있어야 합니다.
+
+  방법 A) 환경변수
+    사용자 또는 시스템 환경변수에  ECOS_API_KEY = (발급받은 키) 를 설정합니다.
+
+  방법 B) 파일
+    프로젝트 루트에  한국은행.md  파일을 두고, 그 안에 인증키(영문·숫자)를 적습니다.
+    (스크립트가 파일 내용에서 키 형식을 찾아 사용합니다.)
+
+  ※ 인증키가 들어간 파일을 외부에 공유하거나 공개 저장소에 올리지 않도록 주의하세요.
+  ※ ZIP에 키 파일을 넣어 보낼 때는 메일 등으로 따로 전달하는 편이 안전합니다.
+
+
+■ 6. 실행 방법 (원클릭에 가까운 사용)
+
+  [카페 대문용 전체 자동]  (데이터 갱신 → PNG 캡처 → Git 푸시·purge·바탕화면 txt 등)
+    cafe_door.bat 을 더블클릭합니다.
+    - Git이 설치되어 있고 이 PC에 원격 저장소 권한이 있어야 푸시까지 됩니다.
+    - Git 없이 “데이터만” 만들려면 아래 단독 실행을 쓰는 편이 낫습니다.
+
+  [GUI 업로드 도구]
+    cafe_door_gui.bat → Playwright 기반 GUI(cafe_door_upload.py)
+
+  [수동으로 나누어 실행]
+    py -3 scripts\generate_dashboard.py     … docs\data.json 등 갱신, cafe-door.html 초안
+    py -3 scripts\capture_ticker.py           … docs\ticker.png 등 이미지 캡처
+
+  index.html 은 브라우저로 docs\index.html 을 열어 확인할 수 있습니다(로컬 파일).
+
+
+■ 7. 자주 나오는 오류
+
+  - "python을 찾을 수 없습니다"
+      → Python 설치 또는 PATH 설정을 확인합니다.  py 명령이 되면 배치 파일의 :pyrun 이 동작합니다.
+
+  - ECOS API 키가 없습니다
+      → 5절 환경변수 또는 한국은행.md 를 설정합니다.
+
+  - Playwright / Chromium 관련 오류
+      → 4절 playwright install chromium 을 다시 실행합니다.
+
+  - git pull / push 오류 (로컬 변경 있음)
+      → 변경 내용을 커밋하거나 git stash 후 다시 시도합니다.
+
+
+■ 8. 요약 체크리스트 (새 PC)
+
+  □ Python 3 설치 (PATH)
+  □ 프로젝트 폴더 압축 해제
+  □ pip install -r requirements.txt
+  □ playwright install chromium
+  □ ECOS_API_KEY 또는 한국은행.md
+  □ (선택) Git 설치 — cafe_door.bat 전체 파이프라인용
+
+================================================================================
+  문의·수정은 프로젝트 관리자에게 연락하세요.
+================================================================================
