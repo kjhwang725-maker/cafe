@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-05T10:43:21.770784+09:00",
-  "ticker_image_version": "1_20260505_104321",
+  "generated_at": "2026-05-06T10:14:21.800981+09:00",
+  "ticker_image_version": "1_20260506_101421",
   "series": {
     "kr_policy_rate": {
       "label": "한국 기준금리",
@@ -36,10 +36,10 @@
     },
     "call_rate": {
       "label": "콜금리(1일·전체)",
-      "value": "2.554",
+      "value": "2.487",
       "unit": "%",
-      "time": "20260430",
-      "delta_pp": 0.041,
+      "time": "20260504",
+      "delta_pp": -0.067,
       "note": "817Y002·010101000·일"
     },
     "cofix_proxy": {
@@ -76,18 +76,18 @@
     },
     "us_long": {
       "label": "미국 장기금리(IRLT)",
-      "value": "4.25",
+      "value": "4.32",
       "unit": "%",
-      "time": "202603",
-      "delta_pp": 0.12,
+      "time": "202604",
+      "delta_pp": 0.07,
       "note": "902Y023·IRLT·USA·월 (≈10Y)"
     },
     "us_short": {
       "label": "미국 단기금리(IR3TIB)",
-      "value": "3.69",
+      "value": "3.77",
       "unit": "%",
-      "time": "202603",
-      "delta_pp": 0.03,
+      "time": "202604",
+      "delta_pp": 0.08,
       "note": "902Y023·IR3TIB·USA·월"
     },
     "jp_long": {
@@ -100,27 +100,26 @@
     },
     "fx_usd": {
       "label": "원/달러(매매기준)",
-      "value": "1 476.50",
+      "value": "1 470.50",
       "unit": "원",
-      "time": "20260504",
-      "delta_pp": -6.8,
-      "note": "731Y001·0000001·일",
-      "trade_time": "01:21"
+      "time": "20260506",
+      "delta_pp": -14.3,
+      "note": "731Y001·0000001·일"
     },
     "fx_jpy": {
       "label": "원/100엔(매매기준)",
-      "value": "946.67",
+      "value": "932.79",
       "unit": "원",
-      "time": "20260504",
-      "delta_pp": 26.09,
+      "time": "20260506",
+      "delta_pp": -13.88,
       "note": "731Y001·0000002·일"
     },
     "fx_eur": {
       "label": "원/유로(매매기준)",
-      "value": "1 741.97",
+      "value": "1 722.54",
       "unit": "원",
-      "time": "20260504",
-      "delta_pp": 18.4,
+      "time": "20260506",
+      "delta_pp": -19.43,
       "note": "731Y001·0000003·일"
     },
     "export_px": {
