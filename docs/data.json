@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-10T19:32:33.451458+09:00",
-  "ticker_image_version": "1_20260510_193233",
+  "generated_at": "2026-05-11T06:59:47.566465+09:00",
+  "ticker_image_version": "1_20260511_065947",
   "series": {
     "kr_policy_rate": {
       "label": "한국 기준금리",
@@ -53,7 +53,7 @@
       "label": "미국 기준금리(중앙은행)",
       "value": "3.625",
       "unit": "%",
-      "time": "202603",
+      "time": "202604",
       "delta_pp": 0.0,
       "rate_decimals": 3,
       "note": "902Y006·US·월"
@@ -62,7 +62,7 @@
       "label": "ECB 정책금리(유로지역)",
       "value": "2.00",
       "unit": "%",
-      "time": "202603",
+      "time": "202604",
       "delta_pp": 0.0,
       "note": "902Y006·XM·월"
     },
@@ -70,7 +70,7 @@
       "label": "일본 기준금리",
       "value": "0.75",
       "unit": "%",
-      "time": "202603",
+      "time": "202604",
       "delta_pp": 0.0,
       "note": "902Y006·JP·월"
     },
