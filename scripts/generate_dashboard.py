@@ -118,8 +118,6 @@ from ecos_client import (
     statistic_search,
 )
 
-from real_estate_market import build_housing_rone_apartment_regions, build_rone_optional
-
 try:
     from zoneinfo import ZoneInfo
 
@@ -389,33 +387,6 @@ def build_payload() -> dict:
         "note": "404Y014·총지수·월",
     }
 
-    try:
-        housing_ecos = build_housing_rone_apartment_regions(_rows)
-        if "R-ONE" in (housing_ecos.get("note") or ""):
-            footnotes.append(
-                "아파트 매매가격지수(서울·경기·월)는 한국부동산원 부동산통계전문(R-ONE) Open API 통계표 A_2024_00045입니다."
-            )
-    except Exception as e:
-        print(f"[WARN] R-ONE 주택지수 수집 실패 — ECOS 폴백: {e}")
-        from real_estate_market import build_housing_ecos_rows
-        housing_ecos = build_housing_ecos_rows(_rows)
-
-    try:
-        rone = build_rone_optional()
-    except Exception as e:
-        print(f"[WARN] R-ONE(부동산원) 데이터 수집 실패 — 스킵: {e}")
-        rone = {"ok": False, "message": f"R-ONE 수집 실패: {e}"}
-
-    for _k in ("commercial_vacancy", "investment_return"):
-        series.pop(_k, None)
-    if isinstance(rone, dict):
-        rone.pop("commercial_vacancy", None)
-        rone.pop("investment_return", None)
-        tc = rone.get("tables_configured")
-        if isinstance(tc, dict):
-            tc.pop("commercial_vacancy", None)
-            tc.pop("investment_return", None)
-
     # ECOS 웹 메인 실시간 지표: (1) Open API보다 날짜가 더 최신이면 덮어쓰기
     # (2) Open API의 관측일이 당일(KST)까지 아직 안 올라온 경우에도 RT로 보완(동일 영업일 재조회·시간값 등)
     try:
@@ -485,8 +456,6 @@ def build_payload() -> dict:
         "generated_at": now.isoformat(),
         "ticker_image_version": ticker_image_version,
         "series": series,
-        "housing_ecos": housing_ecos,
-        "rone": rone,
         "footnotes": footnotes,
     }
 

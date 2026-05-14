@@ -21,8 +21,7 @@ if errorlevel 1 (
     if errorlevel 1 goto :fail
     git add cafe-door.html
     git commit -m "chore: cafe-door jsDelivr @commit"
-    git pull --rebase origin main
-    git push origin main
+    git push -f origin main
     if errorlevel 1 goto :fail
     echo Push OK.
 ) else (
