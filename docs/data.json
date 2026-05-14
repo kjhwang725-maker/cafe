@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-14T09:43:24.913577+09:00",
-  "ticker_image_version": "1_20260514_094324",
+  "generated_at": "2026-05-14T09:54:10.772708+09:00",
+  "ticker_image_version": "1_20260514_095410",
   "series": {
     "kr_policy_rate": {
       "label": "한국 기준금리",
@@ -100,12 +100,12 @@
     },
     "fx_usd": {
       "label": "원/달러(매매기준)",
-      "value": "1 489.15",
+      "value": "1 489.35",
       "unit": "원",
       "time": "20260514",
-      "delta_pp": -1.45,
+      "delta_pp": -1.25,
       "note": "731Y001·0000001·일",
-      "trade_time": "09:41"
+      "trade_time": "09:52"
     },
     "fx_jpy": {
       "label": "원/100엔(매매기준)",
