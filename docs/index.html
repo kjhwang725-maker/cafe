@@ -20,8 +20,6 @@
 </script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
   html {
@@ -104,39 +102,6 @@
   </div>
   </div>
 
-  <main class="space-y-6">
-    <div class="flex items-center mb-4 border-b-2 border-slate-200 pb-5">
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-blue-100/70 rounded-xl">
-          <i data-lucide="home" class="text-blue-600 w-6 h-6"></i>
-        </div>
-        <h2 class="text-xl font-black tracking-tight text-slate-900">부동산 마켓 분석</h2>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 gap-6 min-[901px]:grid-cols-3">
-      <div class="col-span-1 bg-white rounded-2xl p-7 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)] border border-slate-200 relative min-[901px]:col-span-2">
-        <div class="mb-6">
-          <h3 class="font-extrabold text-lg text-slate-900 mb-1">아파트 매매가격지수 (월간)</h3>
-          <p class="text-xs text-slate-400 font-medium empty:hidden" id="housing-note"></p>
-        </div>
-        <div id="housing-chart-wrap" class="relative w-full min-h-[14rem] overflow-visible">
-          <div class="relative min-h-[14rem] h-64 w-full pl-2 pr-4 sm:pr-6">
-            <canvas id="housingChart"></canvas>
-          </div>
-        </div>
-        <p id="housing-asof" class="mt-4 text-xs text-slate-500 font-medium"></p>
-      </div>
-
-      <div class="bg-white rounded-2xl p-7 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)] border border-slate-200">
-        <h3 class="font-extrabold text-sm text-slate-900 mb-1 leading-tight">매매수급동향(아파트)</h3>
-        <p class="text-xs text-slate-400 font-medium mb-6" id="sd-hint">100 미만: 매수자 우위 · 지역별 최신</p>
-        <div id="supply-demand-list" class="space-y-6"></div>
-        <p id="sd-asof" class="mt-6 text-xs text-slate-500 font-medium"></p>
-      </div>
-    </div>
-  </main>
-
   <footer class="text-center text-sm font-semibold text-slate-400 tracking-tight pt-5 pb-1 mt-1">
     네이버 카페 공간시장
   </footer>
@@ -144,65 +109,11 @@
 
 <script>
 (function () {
-  if (typeof Chart !== "undefined" && typeof ChartDataLabels !== "undefined") {
-    Chart.register(ChartDataLabels);
-  }
-
-  var CHART_TEXT = "#475569";
-  var CHART_GRID = "#e2e8f0";
-  var CHART_MUTED = "#64748b";
-
-  function sampleShow(i, len) {
-    if (len <= 10) return true;
-    if (len <= 24) return i % 2 === 0 || i === len - 1;
-    if (len <= 48) return i % 3 === 0 || i >= len - 2;
-    var step = Math.max(1, Math.floor(len / 14));
-    return i % step === 0 || i >= len - 1;
-  }
-
-  function dlStroke() {
-    return { textStrokeColor: "#ffffff", textStrokeWidth: 2 };
-  }
-
-  function safeParsedY(ctx) {
-    if (!ctx) return null;
-    if (ctx.parsed) {
-      if (ctx.parsed.y !== undefined && ctx.parsed.y !== null) return ctx.parsed.y;
-      if (ctx.parsed.x !== undefined && ctx.parsed.x !== null) return ctx.parsed.x;
-    }
-    if (ctx.dataset && ctx.dataset.data && ctx.dataIndex !== undefined) {
-      var r = ctx.dataset.data[ctx.dataIndex];
-      if (r !== undefined && r !== null) return r;
-    }
-    return null;
-  }
-
-  var REB_OPENAPI_STAT_SEARCH = "https://www.reb.or.kr/r-one/portal/openapi/openApiGuideCdPage.do";
-  function linkRebStatSearch(label) {
-    label = label || "통계코드 검색(R-ONE)";
-    return (
-      '<a href="' +
-      REB_OPENAPI_STAT_SEARCH +
-      '" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline font-medium">' +
-      esc(label) +
-      "</a>"
-    );
-  }
-
   function esc(s) {
     if (s == null) return "";
     var d = document.createElement("div");
     d.textContent = s;
     return d.innerHTML;
-  }
-
-  /** 시장 지표에서 제외: 상업용 부동산 공실률, 부동산 투자수익률 */
-  function shouldHideMarketLine(text) {
-    if (text == null || text === "") return false;
-    var l = String(text).replace(/\s+/g, "");
-    if (l.indexOf("상업용") !== -1 && l.indexOf("공실률") !== -1) return true;
-    if (l.indexOf("부동산") !== -1 && l.indexOf("투자수익률") !== -1) return true;
-    return false;
   }
 
   /** 미국·일본 금리: data.json의 rate_decimals와 무관하게 소수 둘째 자리까지 표시 */
@@ -218,43 +129,6 @@
     var y = d.slice(0, 4);
     var m = d.slice(4, 6);
     return "'" + y.slice(2) + "." + m;
-  }
-
-  /** YYYYMM(6자리) → '2026년 2월' */
-  function ymDigitsToKrLong(d6) {
-    var d = String(d6 == null ? "" : d6).replace(/\D/g, "").slice(0, 6);
-    if (d.length < 6) return "";
-    var y = parseInt(d.slice(0, 4), 10);
-    var mo = parseInt(d.slice(4, 6), 10);
-    if (isNaN(y) || isNaN(mo) || mo < 1 || mo > 12) return "";
-    return y + "년 " + mo + "월";
-  }
-
-  function latestYmFromHousingLabels(labels) {
-    var labs = labels || [];
-    if (!labs.length) return "";
-    var last = String(labs[labs.length - 1] || "");
-    return last.replace(/\D/g, "").slice(0, 6);
-  }
-
-  function maxYmFromSupplyRegions(regions) {
-    var max = "";
-    (regions || []).forEach(function (row) {
-      var t = row.time;
-      if (t == null || t === "") return;
-      var d6 = String(t).replace(/\D/g, "").slice(0, 6);
-      if (d6.length === 6 && d6 > max) max = d6;
-    });
-    return max;
-  }
-
-  function maxYmFromLabelList(labels) {
-    var max = "";
-    (labels || []).forEach(function (lab) {
-      var d6 = String(lab == null ? "" : lab).replace(/\D/g, "").slice(0, 6);
-      if (d6.length === 6 && d6 > max) max = d6;
-    });
-    return max;
   }
 
   /** ECOS note 끝이 「·일」이면 일별 통계 → ('26.04.10), 「·월」이면 ('26.04) */
@@ -406,7 +280,7 @@
       (dt ? '<div class="mt-1 text-xs font-medium text-slate-500">' + esc("(" + dt + ")") + "</div>" : "") +
       "</div>";
     var sub =
-      s.market_sub && String(s.market_sub).trim() && !shouldHideMarketLine(s.market_sub)
+      s.market_sub && String(s.market_sub).trim()
         ? '<div class="mt-1 max-w-[16rem] text-right text-xs font-medium text-slate-500">' + esc(s.market_sub) + "</div>"
         : '<div class="mt-1">' + krRateChangeLine(s.delta_pp) + "</div>";
     var right =
@@ -476,107 +350,6 @@
     );
   }
 
-  /** ECOS 월간 YYYYMM → 축 표기 '25.03 */
-  function labelYmToShortDot(ym) {
-    var d = String(ym == null ? "" : ym).replace(/\D/g, "");
-    if (d.length >= 6) return yyDotMmFromTime(d.slice(0, 6));
-    return String(ym || "");
-  }
-
-  /** 월간 아파트 지수: 최근 years년분량 — 월별 점 기준 years×12개 (서울·경기 또는 구형 sale/lease) */
-  function housingEcosLastYears(he, years) {
-    years = years == null ? 2 : years;
-    var labels = he.labels || [];
-    var maxPts = Math.max(1, Math.floor(years * 12));
-    var start = Math.max(0, labels.length - maxPts);
-    var base = { labels: labels.slice(start), unit: he.unit };
-    if (Array.isArray(he.seoul) && he.seoul.length === labels.length) {
-      base.seoul = he.seoul.slice(start);
-      base.gyeonggi = (he.gyeonggi || []).slice(start);
-      return base;
-    }
-    base.sale = (he.sale || []).slice(start);
-    base.lease = (he.lease || []).slice(start);
-    return base;
-  }
-
-  /** 매매수급: 라벨에서 YYYYMM 추출, 동일 월은 마지막 행 채택 후 최근 n개월만 */
-  function supplyDemandRecentMonths(labels, values, n) {
-    n = n == null ? 3 : n;
-    var byMonth = {};
-    for (var i = 0; i < (labels || []).length; i++) {
-      var lab = String(labels[i]);
-      var digits = lab.replace(/\D/g, "");
-      if (digits.length < 6) continue;
-      var mk = digits.slice(0, 6);
-      byMonth[mk] = { lab: lab, val: values[i] };
-    }
-    var months = Object.keys(byMonth).sort();
-    if (!months.length) {
-      return { labels: labels || [], values: values || [] };
-    }
-    var tail = months.slice(-n);
-    var outL = [];
-    var outV = [];
-    for (var j = 0; j < tail.length; j++) {
-      var p = byMonth[tail[j]];
-      outL.push(p.lab);
-      outV.push(p.val);
-    }
-    return { labels: outL, values: outV };
-  }
-
-  function supplyDemandFmt2(v) {
-    if (v == null || v === "") return "";
-    var n = Number(v);
-    if (isNaN(n)) return String(v);
-    return n.toFixed(2);
-  }
-
-  /** 아파트 매매가격지수 하단 범례(가는 선 + 라벨) */
-  function appendLineLegendBelowChart(wrapId, items) {
-    var wrap = document.getElementById(wrapId);
-    if (!wrap || !items || !items.length) return;
-    var prev = wrap.querySelector(".js-line-legend");
-    if (prev) prev.remove();
-    var leg = document.createElement("div");
-    leg.className =
-      "js-line-legend flex flex-nowrap justify-center items-center gap-x-3 gap-y-1 mt-2 text-[8px] font-semibold text-slate-600 overflow-x-auto pb-0.5";
-    items.forEach(function (item) {
-      var span = document.createElement("span");
-      span.className = "inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap";
-      var line = document.createElement("span");
-      line.className = "inline-block w-3.5 h-0.5 rounded-sm";
-      line.style.background = item.color || "#64748b";
-      var lab = document.createElement("span");
-      lab.textContent = item.label != null ? String(item.label) : "";
-      span.appendChild(line);
-      span.appendChild(lab);
-      leg.appendChild(span);
-    });
-    wrap.appendChild(leg);
-  }
-
-  function chartDefaults() {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: CHART_TEXT, font: { size: 12, family: "'Inter', sans-serif" } } },
-      },
-      scales: {
-        x: {
-          ticks: { color: CHART_MUTED, maxRotation: 45, minRotation: 0, autoSkip: true, font: { family: "'Inter', sans-serif" } },
-          grid: { color: CHART_GRID },
-        },
-        y: {
-          ticks: { color: CHART_MUTED, font: { family: "'Inter', sans-serif" } },
-          grid: { color: CHART_GRID },
-        },
-      },
-    };
-  }
-
   fetch("data.json?v=" + Date.now(), { cache: "no-store" })
     .then(function (r) {
       if (!r.ok) throw new Error("data.json 응답 오류 (" + r.status + ")");
@@ -605,9 +378,7 @@
         { label: (s.fx_eur && s.fx_eur.label) || "원/유로(매매기준)", s: s.fx_eur },
         { label: (s.export_px && s.export_px.label) || "수출물가지수", s: s.export_px },
         { label: (s.ecb_rate && s.ecb_rate.label) || "ECB 정책금리(유로지역)", s: s.ecb_rate },
-      ].filter(function (def) {
-        return !shouldHideMarketLine(def.label);
-      });
+      ];
 
       var jpRateDefs = [
         { label: "기준금리", s: seriesRate2Decimals(s.jp_policy) },
@@ -627,222 +398,6 @@
         "grid grid-cols-1 gap-x-10 gap-y-8 min-[721px]:grid-cols-2",
         "출처 : 한국은행"
       );
-
-      var he = data.housing_ecos || {};
-      var housingNoteEl = document.getElementById("housing-note");
-      housingNoteEl.textContent = "";
-      var heWin = housingEcosLastYears(he, 2);
-      var hLabels = (heWin.labels || []).map(labelYmToShortDot);
-      var useHousingRegions =
-        Array.isArray(heWin.seoul) && heWin.seoul.length === (heWin.labels || []).length;
-      if (!hLabels.length) {
-        housingNoteEl.textContent = "주택 지수 데이터 없음";
-      }
-      var housingDatasets = useHousingRegions
-        ? [
-            {
-              label: "서울",
-              data: heWin.seoul || [],
-              borderColor: "#4f46e5",
-              backgroundColor: "rgba(79, 70, 229, 0.08)",
-              borderWidth: 2.5,
-              tension: 0.3,
-              pointRadius: 0,
-            },
-            {
-              label: "경기",
-              data: heWin.gyeonggi || [],
-              borderColor: "#ea580c",
-              backgroundColor: "rgba(234, 88, 12, 0.08)",
-              borderWidth: 2.5,
-              tension: 0.3,
-              pointRadius: 0,
-            },
-          ]
-        : [
-            {
-              label: "매매 (아파트·전국)",
-              data: heWin.sale || [],
-              borderColor: "#2563eb",
-              backgroundColor: "rgba(37, 99, 235, 0.08)",
-              borderWidth: 2.5,
-              tension: 0.3,
-              pointRadius: 0,
-            },
-            {
-              label: "전세 (아파트·전국)",
-              data: heWin.lease || [],
-              borderColor: "#10b981",
-              backgroundColor: "rgba(16, 185, 129, 0.08)",
-              borderWidth: 2.5,
-              tension: 0.3,
-              pointRadius: 0,
-            },
-          ];
-      new Chart(document.getElementById("housingChart").getContext("2d"), {
-        type: "line",
-        data: {
-          labels: hLabels,
-          datasets: housingDatasets,
-        },
-        options: Object.assign({}, chartDefaults(), {
-          layout: {
-            padding: { top: 22, right: 36, bottom: 10, left: 10 },
-          },
-          plugins: {
-            legend: { display: false },
-            datalabels: Object.assign(
-              {
-                clip: false,
-                display: function (ctx) {
-                  var pv = safeParsedY(ctx);
-                  if (pv == null || pv === "") return false;
-                  return sampleShow(ctx.dataIndex, ctx.dataset.data.length);
-                },
-                color: function (ctx) {
-                  if (useHousingRegions) {
-                    return ["#4338ca", "#c2410c"][ctx.datasetIndex] || CHART_TEXT;
-                  }
-                  return ctx.datasetIndex === 0 ? "#1d4ed8" : "#047857";
-                },
-                font: { size: 10, weight: "700", family: "'Inter', sans-serif" },
-                align: "top",
-                offset: 4,
-                formatter: function (v) {
-                  return v != null && typeof v === "number" ? v.toFixed(1) : "";
-                },
-              },
-              dlStroke()
-            ),
-            tooltip: {
-              callbacks: {
-                label: function (ctx) {
-                  var v = safeParsedY(ctx);
-                  if (v == null || v === "") return ctx.dataset.label + ": —";
-                  return ctx.dataset.label + ": " + Number(v).toFixed(2) + " (" + (he.unit || "") + ")";
-                },
-              },
-            },
-          },
-          scales: Object.assign({}, chartDefaults().scales, {
-            x: Object.assign({}, chartDefaults().scales.x, {
-              offset: true,
-              ticks: Object.assign({}, chartDefaults().scales.x.ticks, { padding: 4 }),
-            }),
-            y: {
-              grace: "10%",
-              ticks: { color: CHART_MUTED, font: { family: "'Inter', sans-serif" } },
-              grid: { color: CHART_GRID },
-              title: { display: true, text: he.unit || "지수", color: CHART_MUTED, font: { family: "'Inter', sans-serif", size: 11 } },
-            },
-          }),
-        }),
-      });
-      if (hLabels.length && housingDatasets.length) {
-        appendLineLegendBelowChart(
-          "housing-chart-wrap",
-          housingDatasets.map(function (d) {
-            return { label: d.label, color: d.borderColor };
-          })
-        );
-      }
-
-      var housingAsofEl = document.getElementById("housing-asof");
-      var lastHousingYm = latestYmFromHousingLabels(he.labels);
-      var krHousingDate = ymDigitsToKrLong(lastHousingYm);
-      housingAsofEl.textContent = krHousingDate ? "최신 데이터: " + krHousingDate : "";
-
-      var rone = data.rone || {};
-
-      var sdEl = document.getElementById("supply-demand-list");
-      var sdAsofEl = document.getElementById("sd-asof");
-      var sdBar = rone.supply_demand_bar;
-      if (sdBar && (sdBar.regions || []).length) {
-        document.getElementById("sd-hint").textContent = "100 미만: 매수자 우위 · 지역별 최신";
-        sdEl.innerHTML = sdBar.regions
-          .map(function (row) {
-            var lab = row.label || "";
-            var v = row.value;
-            var tim = row.time;
-            var dt = "";
-            if (tim) {
-              var d6 = String(tim).replace(/\D/g, "").slice(0, 6);
-              if (d6.length >= 6) dt = yyDotMmFromTime(d6);
-            }
-            var rightNum =
-              v != null && v !== ""
-                ? '<span class="text-blue-600 text-base font-black tabular-nums">' + esc(supplyDemandFmt2(v)) + "</span>"
-                : '<span class="text-sm text-slate-400">—</span>';
-            var barHtml =
-              v != null && v !== ""
-                ? '<div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner">' +
-                  '<div class="h-full bg-blue-600 rounded-full" style="width:' +
-                  Math.min(100, Math.max(0, v)) +
-                  '%"></div></div>'
-                : "";
-            return (
-              '<div>' +
-                '<div class="flex justify-between items-start gap-3 mb-2">' +
-                '<div class="min-w-0">' +
-                '<div class="text-sm font-bold text-slate-700">' +
-                esc(lab) +
-                "</div>" +
-                (dt
-                  ? '<div class="mt-0.5 text-xs font-medium text-slate-500">' + esc("(" + dt + ")") + "</div>"
-                  : "") +
-                "</div>" +
-                rightNum +
-                "</div>" +
-                barHtml +
-                "</div>"
-            );
-          })
-          .join("");
-        var ymSd = maxYmFromSupplyRegions(sdBar.regions);
-        var krSd = ymDigitsToKrLong(ymSd);
-        sdAsofEl.textContent = krSd ? "최신 데이터: " + krSd : "";
-      } else if (sdBar && (sdBar.labels || []).length) {
-        document.getElementById("sd-hint").textContent = "100 미만: 매수자 우위 · 최근 3개월";
-        var sd = sdBar;
-        var sd3 = supplyDemandRecentMonths(sd.labels, sd.values, 3);
-        sdEl.innerHTML = sd3.labels
-          .map(function (lab, i) {
-            var v = sd3.values[i];
-            if (v == null) return "";
-            var w = Math.min(100, Math.max(0, v));
-            return (
-              '<div>' +
-                '<div class="flex justify-between items-end mb-2 text-sm font-bold">' +
-                '<span class="text-slate-700">' +
-                esc(lab) +
-                "</span>" +
-                '<span class="text-blue-600 text-base font-black tabular-nums">' +
-                esc(supplyDemandFmt2(v)) +
-                "</span>" +
-                "</div>" +
-                '<div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner">' +
-                '<div class="h-full bg-blue-600 rounded-full" style="width:' +
-                w +
-                '%"></div>' +
-                "</div>" +
-              "</div>"
-            );
-          })
-          .join("");
-        var ymSd2 = maxYmFromLabelList(sd.labels);
-        var krSd2 = ymDigitsToKrLong(ymSd2);
-        sdAsofEl.textContent = krSd2 ? "최신 데이터: " + krSd2 : "";
-      } else {
-        sdAsofEl.textContent = "";
-        sdEl.innerHTML =
-          '<p class="text-sm text-slate-400 leading-relaxed">' +
-          "수급 데이터 없음. " +
-          linkRebStatSearch() +
-          "에서 통계표코드(<code class=\"bg-slate-100 px-1.5 py-0.5 rounded text-xs\">STATBL_ID</code>) 확인 후 " +
-          "<code class=\"bg-slate-100 px-1.5 py-0.5 rounded text-xs\">reb_api.json</code> → " +
-          "<code class=\"bg-slate-100 px-1.5 py-0.5 rounded text-xs\">supply_demand</code>에 반영·갱신하세요." +
-          "</p>";
-      }
 
       if (typeof lucide !== "undefined") lucide.createIcons();
     })
