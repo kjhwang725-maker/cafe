@@ -87,7 +87,7 @@ def write_cafe_door_html(ticker_image_version: str) -> None:
 
 
 def write_cafe_door_html_jdelivr_commit_sha() -> None:
-    """현재 HEAD 커밋의 docs/YYYY-MM-DD.png 를 가리키는 jsDelivr URL — 네이버 캐시 우회용 날짜별 파일명."""
+    """현재 HEAD 커밋의 docs/<stamp>.png 를 가리키는 jsDelivr URL — 매 실행마다 새 파일명(yyyy-mm-dd_HHmmss)으로 네이버 캐시 우회."""
     import subprocess
 
     root = _project_root()
@@ -102,13 +102,22 @@ def write_cafe_door_html_jdelivr_commit_sha() -> None:
         print(f"[WARN] git rev-parse 실패 — cafe-door 미갱신: {r.stderr or r.returncode}")
         return
     sha = (r.stdout or "").strip()
-    try:
-        from zoneinfo import ZoneInfo
+    stamp_path = os.path.join(root, "docs", ".last_ticker.txt")
+    stamp: str | None = None
+    if os.path.isfile(stamp_path):
+        try:
+            with open(stamp_path, encoding="utf-8") as f:
+                stamp = (f.read() or "").strip() or None
+        except OSError:
+            stamp = None
+    if not stamp:
+        try:
+            from zoneinfo import ZoneInfo
 
-        today_str = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d")
-    except ImportError:
-        today_str = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
-    img_name = f"{today_str}.png"
+            stamp = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d_%H%M%S")
+        except ImportError:
+            stamp = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d_%H%M%S")
+    img_name = f"{stamp}.png"
     img_src = f"https://cdn.jsdelivr.net/gh/{CAFE_JSDELIVR_GH}@{sha}/docs/{img_name}"
     out = os.path.join(root, "cafe-door.html")
     with open(out, "w", encoding="utf-8") as f:
