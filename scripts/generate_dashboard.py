@@ -87,7 +87,7 @@ def write_cafe_door_html(ticker_image_version: str) -> None:
 
 
 def write_cafe_door_html_jdelivr_commit_sha() -> None:
-    """현재 HEAD 커밋의 docs/ticker.png 를 가리키는 jsDelivr URL(경로에 SHA) — CDN·네이버에서 새 이미지 보장."""
+    """현재 HEAD 커밋의 docs/YYYY-MM-DD.png 를 가리키는 jsDelivr URL — 네이버 캐시 우회용 날짜별 파일명."""
     import subprocess
 
     root = _project_root()
@@ -102,11 +102,18 @@ def write_cafe_door_html_jdelivr_commit_sha() -> None:
         print(f"[WARN] git rev-parse 실패 — cafe-door 미갱신: {r.stderr or r.returncode}")
         return
     sha = (r.stdout or "").strip()
-    img_src = f"https://cdn.jsdelivr.net/gh/{CAFE_JSDELIVR_GH}@{sha}/docs/ticker.png"
+    try:
+        from zoneinfo import ZoneInfo
+
+        today_str = datetime.now(ZoneInfo("Asia/Seoul")).strftime("%Y-%m-%d")
+    except ImportError:
+        today_str = datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
+    img_name = f"{today_str}.png"
+    img_src = f"https://cdn.jsdelivr.net/gh/{CAFE_JSDELIVR_GH}@{sha}/docs/{img_name}"
     out = os.path.join(root, "cafe-door.html")
     with open(out, "w", encoding="utf-8") as f:
         f.write(cafe_door_html_document(img_src))
-    print(f"작성: {out} (jsDelivr @{sha[:7]}…/docs/ticker.png)")
+    print(f"작성: {out} (jsDelivr @{sha[:7]}…/docs/{img_name})")
 
 from ecos_client import (
     _time_to_int,

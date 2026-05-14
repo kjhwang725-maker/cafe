@@ -12,6 +12,8 @@ call :pyrun scripts\capture_ticker.py --wait-ms 4000
 if errorlevel 1 goto :fail
 
 echo [3/5] git commit and push
+for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd"') do set TODAY=%%i
+git add -f docs\%TODAY%.png
 git add docs\data.json docs\index.html docs\ticker.png docs\ticker_version.txt cafe-door.html
 git diff --cached --quiet
 if errorlevel 1 (
@@ -30,6 +32,7 @@ if errorlevel 1 (
 
 echo [4/5] jsDelivr purge
 powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://purge.jsdelivr.net/gh/kjhwang725-maker/cafe@main/docs/ticker.png' -UseBasicParsing | Out-Null" 2>nul
+powershell -NoProfile -Command "Invoke-WebRequest -Uri ('https://purge.jsdelivr.net/gh/kjhwang725-maker/cafe@main/docs/' + (Get-Date -Format yyyy-MM-dd) + '.png') -UseBasicParsing | Out-Null" 2>nul
 echo CDN purge done.
 
 echo [5/5] 바탕화면 yyyy-mm-dd.txt — 카페 붙여넣기용 HTML (최종 cafe-door 반영^)
