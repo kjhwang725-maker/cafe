@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parent
@@ -98,11 +98,11 @@ def index() -> HTMLResponse:
 
 
 @app.get("/dashboard")
-def dashboard() -> FileResponse:
-    p = DOCS / "index.html"
-    if not p.is_file():
+def dashboard() -> RedirectResponse:
+    # index.html 이 fetch('data.json') 등 상대경로를 쓰므로 /docs/ 아래에서 직접 서빙되어야 함.
+    if not (DOCS / "index.html").is_file():
         raise HTTPException(404, "docs/index.html 없음 — 먼저 새로고침을 실행하세요")
-    return FileResponse(p, media_type="text/html; charset=utf-8")
+    return RedirectResponse("/docs/index.html")
 
 
 @app.get("/cafe-door", response_class=HTMLResponse)
