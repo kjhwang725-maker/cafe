@@ -130,6 +130,23 @@ def cafe_door_raw() -> PlainTextResponse:
     return PlainTextResponse(CAFE_DOOR_HTML.read_text(encoding="utf-8"))
 
 
+@app.get("/ticker.png")
+def ticker_png() -> FileResponse:
+    p = DOCS / "ticker.png"
+    if not p.is_file():
+        raise HTTPException(404, "docs/ticker.png 없음 — 먼저 새로고침")
+    return FileResponse(p, media_type="image/png", filename="공간시장.png")
+
+
+# index.html 캐시본이 /data.json 으로 요청하는 경우 대비 (정상 경로는 /docs/data.json)
+@app.get("/data.json")
+def data_json() -> FileResponse:
+    p = DOCS / "data.json"
+    if not p.is_file():
+        raise HTTPException(404, "docs/data.json 없음")
+    return FileResponse(p, media_type="application/json")
+
+
 @app.post("/api/refresh")
 async def refresh() -> JSONResponse:
     if not REFRESH_BAT.is_file():
@@ -155,6 +172,8 @@ if DOCS.is_dir():
     app.mount("/docs", StaticFiles(directory=str(DOCS), html=False), name="docs")
 
 
+CAFE_URL = "https://cafe.naver.com/speedgoodroom"
+
 LANDING_HTML = """<!doctype html>
 <html lang="ko">
 <head>
@@ -164,83 +183,183 @@ LANDING_HTML = """<!doctype html>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif; background:#f4f5f7; color:#222; }
-  header { padding:12px 16px; background:#1f2937; color:#fff; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  header h1 { margin:0; font-size:16px; font-weight:600; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif; background:#f4f5f7; color:#1f2937; }
+  header { padding:14px 20px; background:#1f2937; color:#fff; display:flex; align-items:center; gap:12px; }
+  header h1 { margin:0; font-size:17px; font-weight:600; }
   header .spacer { flex:1; }
-  header button { background:#2563eb; color:#fff; border:0; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:14px; }
-  header button:disabled { opacity:.6; cursor:not-allowed; }
-  header .status { font-size:12px; opacity:.85; }
-  main { display:grid; grid-template-columns: 1fr 1fr; gap:12px; padding:12px; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-  section { background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.06); display:flex; flex-direction:column; min-height: 540px; }
-  section h2 { margin:0; padding:10px 14px; font-size:14px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px; }
-  section h2 .small { font-size:12px; color:#666; font-weight:400; }
-  section h2 button { margin-left:auto; background:#eef2ff; color:#1f2937; border:1px solid #c7d2fe; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:12px; }
-  iframe { flex:1; width:100%; border:0; background:#fff; }
-  textarea { width:100%; height:140px; padding:8px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; border:0; border-top:1px solid #eee; resize:vertical; outline:none; }
-  pre.log { margin:0; padding:8px 12px; background:#111827; color:#d1d5db; font-size:11px; max-height:160px; overflow:auto; white-space:pre-wrap; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px; display:flex; flex-direction:column; gap:16px; }
+  .step { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.06); overflow:hidden; opacity:.55; transition: opacity .2s; }
+  .step.active, .step.done { opacity: 1; }
+  .step header { background:#f9fafb; color:#1f2937; padding:14px 18px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px; }
+  .step .num { width:30px; height:30px; border-radius:50%; background:#9ca3af; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; flex-shrink:0; }
+  .step.active .num { background:#2563eb; }
+  .step.done  .num { background:#10b981; }
+  .step .title { font-weight:600; font-size:15px; }
+  .step .desc  { font-size:12px; color:#6b7280; }
+  .step .body  { padding:16px 18px; display:flex; flex-direction:column; gap:12px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button.primary { background:#2563eb; color:#fff; border:0; padding:10px 18px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600; }
+  button.primary:hover { background:#1d4ed8; }
+  button.primary:disabled { opacity:.55; cursor:not-allowed; }
+  button.secondary { background:#fff; color:#1f2937; border:1px solid #d1d5db; padding:9px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+  button.secondary:hover { background:#f3f4f6; }
+  a.btnlink { display:inline-block; text-decoration:none; }
+  .status-line { font-size:13px; color:#374151; }
+  .status-line.error { color:#b91c1c; }
+  .status-line.ok    { color:#047857; }
+  pre.log { margin:0; padding:10px 14px; background:#111827; color:#d1d5db; font-size:11px; max-height:160px; overflow:auto; white-space:pre-wrap; border-radius:6px; display:none; }
+  .preview-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  @media (max-width: 820px) { .preview-grid { grid-template-columns: 1fr; } }
+  iframe.preview { width:100%; height:380px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; }
+  textarea.html { width:100%; height:160px; padding:10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:11px; border:1px solid #e5e7eb; border-radius:6px; resize:vertical; outline:none; background:#fafafa; }
+  details.dash { margin-top:8px; }
+  details.dash summary { cursor:pointer; font-size:12px; color:#6b7280; padding:4px 0; }
+  details.dash iframe { width:100%; height:520px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; margin-top:6px; }
 </style>
 </head>
 <body>
 <header>
   <h1>☕ 카페 전광판</h1>
-  <span class="status" id="status">대기 중</span>
   <span class="spacer"></span>
-  <button id="refresh">새로고침 (데이터+이미지+커밋·푸시)</button>
 </header>
+
 <main>
-  <section>
-    <h2>📊 대시보드 <span class="small">docs/index.html</span>
-      <button onclick="document.getElementById('dash').src = '/dashboard?_=' + Date.now()">↻</button>
-    </h2>
-    <iframe id="dash" src="/dashboard"></iframe>
+
+  <!-- STEP 1 -->
+  <section class="step active" id="step1">
+    <header>
+      <span class="num">1</span>
+      <div>
+        <div class="title">데이터·이미지 새로고침</div>
+        <div class="desc">ECOS 지표 갱신 → 대시보드 캡처 → cafe-door.html 갱신 → 커밋·푸시</div>
+      </div>
+    </header>
+    <div class="body">
+      <div class="row">
+        <button id="refresh" class="primary">▶ 새로고침 시작</button>
+        <span class="status-line" id="status">대기 중</span>
+      </div>
+      <pre class="log" id="log"></pre>
+    </div>
   </section>
-  <section>
-    <h2>🏠 카페 대문 미리보기 <span class="small">jsDelivr 이미지</span>
-      <button onclick="document.getElementById('door').src = '/cafe-door?_=' + Date.now()">↻</button>
-      <button id="copy" style="margin-left:6px">HTML 복사</button>
-    </h2>
-    <iframe id="door" src="/cafe-door"></iframe>
-    <textarea id="html" readonly placeholder="cafe-door.html 로드 중…"></textarea>
+
+  <!-- STEP 2 -->
+  <section class="step" id="step2">
+    <header>
+      <span class="num">2</span>
+      <div>
+        <div class="title">카페 게시용 — HTML 복사 / PNG 다운로드</div>
+        <div class="desc">카페 글 작성: 본문에 HTML 붙여넣기, 혹은 PNG 첨부</div>
+      </div>
+    </header>
+    <div class="body">
+      <div class="row">
+        <button id="copyHtml" class="primary">📋 HTML 복사</button>
+        <a id="downloadPng" class="btnlink" href="/ticker.png" download="공간시장.png">
+          <button class="primary" type="button">⬇ PNG 다운로드</button>
+        </a>
+        <span class="status-line" id="step2status"></span>
+      </div>
+      <div class="preview-grid">
+        <div>
+          <div class="desc" style="margin-bottom:4px;">🏠 카페 대문 미리보기</div>
+          <iframe class="preview" id="door" src="/cafe-door"></iframe>
+        </div>
+        <div>
+          <div class="desc" style="margin-bottom:4px;">📄 붙여넣기용 HTML</div>
+          <textarea id="html" class="html" readonly placeholder="새로고침을 먼저 실행하세요"></textarea>
+        </div>
+      </div>
+      <details class="dash">
+        <summary>📊 전체 대시보드 보기 (선택)</summary>
+        <iframe id="dash" src="about:blank" loading="lazy"></iframe>
+      </details>
+    </div>
   </section>
+
+  <!-- STEP 3 -->
+  <section class="step" id="step3">
+    <header>
+      <span class="num">3</span>
+      <div>
+        <div class="title">네이버 카페 열기</div>
+        <div class="desc">새 창에서 카페에 접속해 글을 작성·수정</div>
+      </div>
+    </header>
+    <div class="body">
+      <div class="row">
+        <a class="btnlink" href="__CAFE_URL__" target="_blank" rel="noopener noreferrer">
+          <button class="primary" type="button">🔗 네이버 카페 열기 (새 창)</button>
+        </a>
+        <span class="status-line">__CAFE_URL__</span>
+      </div>
+    </div>
+  </section>
+
 </main>
-<pre class="log" id="log" hidden></pre>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const statusEl = $('status');
 const refreshBtn = $('refresh');
+const statusEl = $('status');
 const logEl = $('log');
+const step1 = $('step1'), step2 = $('step2'), step3 = $('step3');
+
+function setStep(n) {
+  [step1, step2, step3].forEach((el, i) => {
+    el.classList.toggle('active', i + 1 === n);
+    el.classList.toggle('done', i + 1 < n);
+  });
+}
 
 async function loadHtml() {
   try {
     const r = await fetch('/api/cafe-door?_=' + Date.now());
-    $('html').value = r.ok ? await r.text() : '(아직 없음)';
-  } catch { $('html').value = '(로드 실패)'; }
+    if (r.ok) {
+      $('html').value = await r.text();
+      return true;
+    }
+  } catch {}
+  $('html').value = '(아직 없음 — 1단계 새로고침을 먼저 실행하세요)';
+  return false;
 }
 
-$('copy').addEventListener('click', async () => {
+$('copyHtml').addEventListener('click', async () => {
   const ta = $('html');
-  ta.select();
+  if (!ta.value || ta.value.startsWith('(')) {
+    $('step2status').textContent = '먼저 1단계 새로고침을 실행하세요';
+    $('step2status').className = 'status-line error';
+    return;
+  }
   try {
     await navigator.clipboard.writeText(ta.value);
-    $('copy').textContent = '복사됨 ✓';
-    setTimeout(() => $('copy').textContent = 'HTML 복사', 1200);
   } catch {
-    document.execCommand('copy');
+    ta.select(); document.execCommand('copy');
   }
+  $('step2status').textContent = '✓ HTML 복사됨 — 카페 글 본문에 붙여넣기';
+  $('step2status').className = 'status-line ok';
+  setStep(3);
+});
+
+$('downloadPng').addEventListener('click', () => {
+  $('step2status').textContent = '✓ PNG 다운로드 진행';
+  $('step2status').className = 'status-line ok';
+  setStep(3);
 });
 
 let polling = null;
-function setStatus(t) { statusEl.textContent = t; }
+function setStatus(t, cls) {
+  statusEl.textContent = t;
+  statusEl.className = 'status-line' + (cls ? ' ' + cls : '');
+}
 
 async function pollStatus() {
   try {
     const r = await fetch('/api/refresh/status');
+    if (!r.ok) throw new Error(r.status);
     const s = await r.json();
     if (s.tail && s.tail.length) {
-      logEl.hidden = false;
+      logEl.style.display = 'block';
       logEl.textContent = s.tail.join('\\n');
       logEl.scrollTop = logEl.scrollHeight;
     }
@@ -251,46 +370,56 @@ async function pollStatus() {
       clearInterval(polling); polling = null;
       refreshBtn.disabled = false;
       if (s.returncode === 0) {
-        setStatus('완료 ✓');
-        $('dash').src = '/dashboard?_=' + Date.now();
+        setStatus('✓ 완료', 'ok');
         $('door').src = '/cafe-door?_=' + Date.now();
-        loadHtml();
+        const dashEl = $('dash');
+        if (dashEl.src && dashEl.src !== 'about:blank') dashEl.src = '/dashboard?_=' + Date.now();
+        await loadHtml();
+        setStep(2);
       } else {
-        setStatus(`실패 (rc=${s.returncode})`);
+        setStatus(`실패 (rc=${s.returncode}) — 로그 확인`, 'error');
       }
     }
-  } catch (e) {
-    setStatus('상태 조회 실패');
+  } catch {
+    // 일시 오류는 다음 폴링에서 회복; 화면 상태는 그대로 둠
   }
 }
 
 refreshBtn.addEventListener('click', async () => {
   refreshBtn.disabled = true;
   setStatus('시작 중…');
-  logEl.hidden = false;
+  logEl.style.display = 'block';
   logEl.textContent = '';
   try {
     const r = await fetch('/api/refresh', { method: 'POST' });
     if (!r.ok && r.status !== 409) {
-      setStatus('시작 실패');
+      setStatus('시작 실패', 'error');
       refreshBtn.disabled = false;
       return;
     }
     if (polling) clearInterval(polling);
-    polling = setInterval(pollStatus, 1200);
+    polling = setInterval(pollStatus, 1500);
     pollStatus();
   } catch {
-    setStatus('네트워크 오류');
+    setStatus('네트워크 오류', 'error');
     refreshBtn.disabled = false;
   }
 });
 
-loadHtml();
+// 페이지 진입 시 cafe-door.html 이 이미 있으면 step2 도 활성 표시
+loadHtml().then((ok) => { if (ok) step2.classList.add('active'); });
 pollStatus();
+
+// details 펼칠 때만 dashboard iframe 로드
+document.querySelector('details.dash').addEventListener('toggle', (e) => {
+  if (e.target.open && $('dash').src === 'about:blank') {
+    $('dash').src = '/dashboard';
+  }
+});
 </script>
 </body>
 </html>
-"""
+""".replace("__CAFE_URL__", CAFE_URL)
 
 
 def main() -> None:
