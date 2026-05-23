@@ -211,7 +211,12 @@ LANDING_HTML = """<!doctype html>
   .preview-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
   @media (max-width: 820px) { .preview-grid { grid-template-columns: 1fr; } }
   iframe.preview { width:100%; height:380px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; }
-  textarea.html { width:100%; height:160px; padding:10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:11px; border:1px solid #e5e7eb; border-radius:6px; resize:vertical; outline:none; background:#fafafa; }
+  textarea.html { width:100%; height:380px; padding:10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:11px; border:1px solid #e5e7eb; border-radius:6px; resize:vertical; outline:none; background:#fafafa; }
+  .label-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .label-row .desc { flex:1; margin:0; }
+  button.mini { background:#eef2ff; color:#1f2937; border:1px solid #c7d2fe; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:12px; }
+  button.mini:hover { background:#e0e7ff; }
+  button.mini:disabled { opacity:.5; cursor:not-allowed; }
   details.dash { margin-top:8px; }
   details.dash summary { cursor:pointer; font-size:12px; color:#6b7280; padding:4px 0; }
   details.dash iframe { width:100%; height:520px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; margin-top:6px; }
@@ -266,8 +271,11 @@ LANDING_HTML = """<!doctype html>
           <iframe class="preview" id="door" src="/cafe-door"></iframe>
         </div>
         <div>
-          <div class="desc" style="margin-bottom:4px;">📄 붙여넣기용 HTML</div>
-          <textarea id="html" class="html" readonly placeholder="새로고침을 먼저 실행하세요"></textarea>
+          <div class="label-row">
+            <div class="desc">📄 붙여넣기용 HTML</div>
+            <button id="copyHtml2" class="mini" type="button" disabled>📋 복사</button>
+          </div>
+          <textarea id="html" class="html" readonly placeholder="1단계 새로고침을 실행하면 여기에 표시됩니다"></textarea>
         </div>
       </div>
       <details class="dash">
@@ -313,20 +321,21 @@ function setStep(n) {
 }
 
 async function loadHtml() {
+  // 새로고침 완료 후에만 호출 — 진입 시점에는 textarea 를 비워둔다.
   try {
     const r = await fetch('/api/cafe-door?_=' + Date.now());
     if (r.ok) {
       $('html').value = await r.text();
+      $('copyHtml2').disabled = false;
       return true;
     }
   } catch {}
-  $('html').value = '(아직 없음 — 1단계 새로고침을 먼저 실행하세요)';
   return false;
 }
 
-$('copyHtml').addEventListener('click', async () => {
+async function doCopy() {
   const ta = $('html');
-  if (!ta.value || ta.value.startsWith('(')) {
+  if (!ta.value) {
     $('step2status').textContent = '먼저 1단계 새로고침을 실행하세요';
     $('step2status').className = 'status-line error';
     return;
@@ -339,7 +348,9 @@ $('copyHtml').addEventListener('click', async () => {
   $('step2status').textContent = '✓ HTML 복사됨 — 카페 글 본문에 붙여넣기';
   $('step2status').className = 'status-line ok';
   setStep(3);
-});
+}
+$('copyHtml').addEventListener('click', doCopy);
+$('copyHtml2').addEventListener('click', doCopy);
 
 $('downloadPng').addEventListener('click', () => {
   $('step2status').textContent = '✓ PNG 다운로드 진행';
@@ -406,8 +417,7 @@ refreshBtn.addEventListener('click', async () => {
   }
 });
 
-// 페이지 진입 시 cafe-door.html 이 이미 있으면 step2 도 활성 표시
-loadHtml().then((ok) => { if (ok) step2.classList.add('active'); });
+// 진입 시점에는 textarea 비움 — 새로고침 완료 후에만 채운다.
 pollStatus();
 
 // details 펼칠 때만 dashboard iframe 로드
