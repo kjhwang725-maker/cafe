@@ -1,3 +1,5 @@
 requests
 yfinance
 playwright>=1.40.0
+fastapi>=0.110
+uvicorn[standard]>=0.27
