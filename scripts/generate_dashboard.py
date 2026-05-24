@@ -211,6 +211,22 @@ def _spark_values(rows: list[dict], n: int = 24) -> list[float]:
     return [round(p.value, 4) for p in tail]
 
 
+def _build_yf_series(ticker: str, label: str, unit: str, decimals: int) -> dict | None:
+    """yfinance 종가 시리즈를 데이터 스키마에 맞춰 dict 으로 변환."""
+    yfd = _fetch_yfinance(ticker)
+    if not yfd:
+        return None
+    return {
+        "label": label,
+        "value": _fmt_num(str(yfd["value"]), decimals),
+        "unit": unit,
+        "time": yfd["time"],
+        "delta_pp": yfd["delta_pp"],
+        "spark": yfd["spark"],
+        "note": f"yfinance {ticker} · 일",
+    }
+
+
 def _fetch_yfinance(ticker: str, period: str = "60d") -> dict | None:
     """
     yfinance 로 일별 종가를 가져와 {value, delta_pp, spark, time} 반환.
@@ -263,7 +279,8 @@ def build_payload() -> dict:
         "ECOS 「일별 시장금리」(817Y002)에는 은행채 5년·AAA 무보증 항목이 없어 국고채(5년)로 표시합니다.",
         "한국 기준금리 증감은 전월 대비(%p)입니다. 국고채(3·5년)·환율 등 일별 시리즈 증감은 직전 관측일 대비이며, "
         "당일 미공시 시 마지막 관측일 수치를 씁니다. Open API가 당일(KST)로 아직 반영되지 않았을 때는 ECOS 웹 메인 실시간 지표로 일부 항목을 보완합니다.",
-        "미국 국채 10년(^TNX) · 3개월(^IRX) · 코스피(^KS11) 는 Yahoo Finance 실시간 일별 종가 기준입니다.",
+        "미국 국채 10년(^TNX)·3개월(^IRX), 코스피(^KS11), 반도체(필라델피아 ^SOX, 삼성전자 005930.KS, SK하이닉스 000660.KS), "
+        "부동산(KODEX 부동산리츠인프라 329200.KS, ESR켄달스퀘어 365550.KS, Prologis PLD)은 Yahoo Finance 일별 종가 기준입니다.",
     ]
 
     series: dict[str, dict] = {}
@@ -373,32 +390,6 @@ def build_payload() -> dict:
         "note": "902Y006·JP·월",
     }
 
-    # ※ 기존 us_long (902Y023 IRLT) / us_short (IR3TIB) 는 각각 일반 장기금리·인터뱅크라서
-    # 미국 국채 10년·2년과 정의가 다름. 정확성 위해 제거하고, yfinance 의
-    # ^TNX(10Y T-Note) / ^IRX(13W T-Bill) 로 공식 미국채 수익률을 가져온다.
-    yf_us10 = _fetch_yfinance("^TNX")
-    if yf_us10:
-        series["us_t10y"] = {
-            "label": "미국 국채 10년",
-            "value": _fmt_num(str(yf_us10["value"]), 2),
-            "unit": "%",
-            "time": yf_us10["time"],
-            "delta_pp": yf_us10["delta_pp"],
-            "spark": yf_us10["spark"],
-            "note": "yfinance ^TNX · 일",
-        }
-    yf_us3m = _fetch_yfinance("^IRX")
-    if yf_us3m:
-        series["us_t3m"] = {
-            "label": "미국 국채 3개월",
-            "value": _fmt_num(str(yf_us3m["value"]), 2),
-            "unit": "%",
-            "time": yf_us3m["time"],
-            "delta_pp": yf_us3m["delta_pp"],
-            "spark": yf_us3m["spark"],
-            "note": "yfinance ^IRX · 일",
-        }
-
     r = _rows(f"1/1000/902Y023/M/202201/{m_end}/IRLT/JPN")
     t, v = last_data_value(r)
     series["jp_long"] = {
@@ -429,18 +420,28 @@ def build_payload() -> dict:
             "note": f"731Y001·{code}·일",
         }
 
-    # ── 한국 주식 시장 (일, yfinance) ────────────────
-    yf_kospi = _fetch_yfinance("^KS11")
-    if yf_kospi:
-        series["kospi"] = {
-            "label": "코스피",
-            "value": _fmt_num(str(yf_kospi["value"]), 2),
-            "unit": "p",
-            "time": yf_kospi["time"],
-            "delta_pp": yf_kospi["delta_pp"],
-            "spark": yf_kospi["spark"],
-            "note": "yfinance ^KS11 · 일",
-        }
+    # ── Yahoo Finance 종합 (일별 종가) ─────────────────
+    # us_t10y, us_t3m, kospi 외에 반도체(SOX/삼성/하이닉스)와
+    # 부동산·산업용(KODEX 부동산리츠, ESR켄달스퀘어 물류, Prologis 글로벌 산업용 REIT) 추가.
+    # 기존 cofix_proxy/us_short/us_long 은 라벨↔데이터 불일치로 제거됨.
+    yf_specs = [
+        # (series_key, ticker, label, unit, decimals)
+        ("us_t10y",     "^TNX",      "미국 국채 10년",            "%", 2),
+        ("us_t3m",      "^IRX",      "미국 국채 3개월",           "%", 2),
+        ("kospi",       "^KS11",     "코스피",                    "p", 2),
+        # 반도체
+        ("sox",         "^SOX",      "필라델피아 반도체",         "p", 2),
+        ("samsung",     "005930.KS", "삼성전자",                  "원", 0),
+        ("sk_hynix",    "000660.KS", "SK하이닉스",                "원", 0),
+        # 부동산·산업용
+        ("kr_reit_etf", "329200.KS", "KODEX 부동산리츠인프라",    "원", 0),
+        ("esr_kendall", "365550.KS", "ESR켄달스퀘어(물류)",       "원", 0),
+        ("prologis",    "PLD",       "Prologis(글로벌 산업용)",   "$", 2),
+    ]
+    for key, ticker, label, unit, dec in yf_specs:
+        s_yf = _build_yf_series(ticker, label, unit, dec)
+        if s_yf:
+            series[key] = s_yf
 
     # ── 물가 (월) ─────────────────────────────────────
     aa = quote("*AA", safe="")

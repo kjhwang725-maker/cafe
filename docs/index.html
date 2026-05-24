@@ -195,13 +195,14 @@
     <!-- ───── 헤더 ───── -->
     <div class="hero">
       <div class="hero-top">
-        <div class="hero-logo" title="네이버 카페">
-          <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
-            <rect x="10.2" y="5"  width="2.6" height="5.2" rx="1.3" fill="#fff"/>
-            <rect x="14.7" y="4"  width="2.6" height="6.2" rx="1.3" fill="#fff"/>
-            <rect x="19.2" y="5"  width="2.6" height="5.2" rx="1.3" fill="#fff"/>
-            <path fill="#fff" d="M9.5 14.8h13a1.5 1.5 0 011.5 1.5v4.6a5.6 5.6 0 01-5.6 5.6h-4.8a5.6 5.6 0 01-5.6-5.6v-4.6a1.5 1.5 0 011.5-1.5z"/>
-            <path fill="#fff" d="M23 16h2.6a3.4 3.4 0 110 6.8H23V16z"/>
+        <div class="hero-logo" title="Market Briefing">
+          <!-- 상승 차트 라인 아이콘 — 대시보드 테마 -->
+          <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+            <path d="M5 24 L12 17 L18 20 L26 8"
+                  stroke="#fff" stroke-width="2.8" fill="none"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="26" cy="8" r="2.4" fill="#fff"/>
+            <path d="M4 27 L28 27" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity="0.55"/>
           </svg>
         </div>
         <div>
@@ -235,6 +236,8 @@
       <div class="card" id="card-fx"></div>
       <div class="card" id="card-us"></div>
       <div class="card" id="card-jp"></div>
+      <div class="card" id="card-semi"></div>
+      <div class="card" id="card-reit"></div>
       <div class="card" id="card-prices" style="grid-column: 1 / -1;"></div>
     </div>
 
@@ -312,7 +315,12 @@
     const dec = decimals != null ? decimals : 2;
     const sign = n > 0 ? "▲" : "▼";
     const cls  = n > 0 ? "up" : "down";
-    return `<span class="chg ${cls}">${sign} ${Math.abs(n).toFixed(dec)}${asPct ? "%p" : ""}</span>`;
+    // %p(금리)는 콤마 없이 소수만; 가격·지수 등은 toLocaleString 으로 천단위 콤마
+    const abs = Math.abs(n);
+    const numStr = asPct
+      ? abs.toFixed(dec)
+      : abs.toLocaleString("ko-KR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    return `<span class="chg ${cls}">${sign} ${numStr}${asPct ? "%p" : ""}</span>`;
   }
 
   /** spark 길이 + note 의 ·월/·일 토큰으로 "최근 N개월" / "최근 N일" 자동 추론. */
@@ -462,6 +470,20 @@
         cardHead("rose", "japanese-yen", "일본 금리", "JP Rates") +
         rateRow("기준금리", s.jp_policy, 2) +
         rateRow("장기금리(≈10Y)", s.jp_long, 2);
+
+      // ── 반도체
+      $("card-semi").innerHTML =
+        cardHead("violet", "cpu", "반도체", "Semiconductors") +
+        fxRow("필라델피아 반도체", s.sox,      2) +
+        fxRow("삼성전자",          s.samsung,  0) +
+        fxRow("SK하이닉스",        s.sk_hynix, 0);
+
+      // ── 부동산·산업용
+      $("card-reit").innerHTML =
+        cardHead("teal", "building-2", "부동산·산업용", "REITs · Industrial") +
+        fxRow("KODEX 부동산리츠인프라", s.kr_reit_etf, 0) +
+        fxRow("ESR켄달스퀘어(물류)",    s.esr_kendall, 0) +
+        fxRow("Prologis(글로벌 산업용)", s.prologis,    2);
 
       // ── 물가
       $("card-prices").innerHTML =
