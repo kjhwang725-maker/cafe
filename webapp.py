@@ -17,6 +17,7 @@ FastAPI 웹앱 — 기존 카페 전광판(대시보드 + 카페 대문 이미�
 from __future__ import annotations
 
 import asyncio
+import os
 import subprocess
 import sys
 import threading
@@ -58,6 +59,12 @@ state = RefreshState()
 
 def _run_refresh_bat() -> None:
     state.tail = []
+    # 자식 Python(scripts/*.py)의 stdout 을 강제로 UTF-8 로 인코딩하게 해서
+    # 한국 OEM(cp949) ↔ utf-8 미스매치로 한글이 깨지는 것을 막는다.
+    # git 등 네이티브 도구도 UTF-8 출력하도록 chcp 65001 은 bat 가 이미 설정.
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
     try:
         proc = subprocess.Popen(
             ["cmd", "/c", str(REFRESH_BAT)] if sys.platform == "win32" else [str(REFRESH_BAT)],
@@ -68,6 +75,7 @@ def _run_refresh_bat() -> None:
             encoding="utf-8",
             errors="replace",
             bufsize=1,
+            env=env,
         )
         assert proc.stdout is not None
         for line in proc.stdout:
@@ -113,6 +121,8 @@ def cafe_door_preview() -> HTMLResponse:
     page = (
         "<!doctype html><html lang='ko'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        # [MyApps] 대시보드 카드 emoji 와 통일하기 위한 favicon — 제거해도 앱 동작 영향 없음
+        '<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚪</text></svg>">'
         "<title>카페 대문 미리보기</title>"
         "<style>body{margin:0;padding:16px;background:#f5f5f5;font-family:system-ui,Segoe UI,Apple SD Gothic Neo,sans-serif}"
         ".wrap{max-width:780px;margin:0 auto;background:#fff;padding:12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08)}"
@@ -179,6 +189,8 @@ LANDING_HTML = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- [MyApps] 대시보드 카드 emoji 와 통일하기 위한 favicon — 제거해도 앱 동작 영향 없음 -->
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚪</text></svg>">
 <title>카페 전광판</title>
 <style>
   :root { color-scheme: light; }
