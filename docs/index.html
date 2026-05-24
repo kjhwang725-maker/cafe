@@ -162,9 +162,9 @@
   .row:first-of-type { border-top: 0; padding-top: 4px; }
   .row .label { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.25; }
   .row .meta  { font-size: 10.5px; color: var(--ink-3); font-weight: 500; margin-top: 1px; }
-  .row .spark { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+  .row .spark { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 1px; }
   .row .spark svg { width: 100%; height: 20px; display: block; }
-  .row .spark .period { font-size: 8.5px; color: var(--ink-3); font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+  .row .spark .period { font-size: 7px; color: var(--ink-3); font-weight: 600; line-height: 1; letter-spacing: -0.03em; text-align: left; padding-left: 1px; }
   .row .right { display: flex; align-items: baseline; gap: 6px; }
   .row .val   { font-size: 17px; font-weight: 800; color: var(--ink); }
   .row .val .u { font-size: 10.5px; font-weight: 700; color: var(--ink-3); margin-left: 2px; }
@@ -175,7 +175,7 @@
   /* KPI 스파크라인 */
   .kpi .kpi-spark { display:flex; flex-direction:column; gap:1px; margin-top: 4px; }
   .kpi .kpi-spark svg { width: 100%; height: 16px; display: block; }
-  .kpi .kpi-spark .period { font-size: 8.5px; color: rgba(255,255,255,.45); font-weight: 600; line-height: 1; text-align: right; letter-spacing: -0.02em; }
+  .kpi .kpi-spark .period { font-size: 7px; color: rgba(255,255,255,.45); font-weight: 600; line-height: 1; text-align: left; padding-left: 1px; letter-spacing: -0.03em; }
 
   /* error / empty */
   .err { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 12.5px; }
