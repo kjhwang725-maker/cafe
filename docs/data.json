@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-24T11:04:25.995285+09:00",
-  "ticker_image_version": "1_20260524_110425",
+  "generated_at": "2026-05-24T11:23:45.645211+09:00",
+  "ticker_image_version": "1_20260524_112345",
   "series": {
     "kr_policy_rate": {
       "label": "한국 기준금리",
