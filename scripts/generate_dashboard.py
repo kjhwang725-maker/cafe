@@ -211,6 +211,40 @@ def _spark_values(rows: list[dict], n: int = 24) -> list[float]:
     return [round(p.value, 4) for p in tail]
 
 
+def _fetch_yfinance(ticker: str, period: str = "60d") -> dict | None:
+    """
+    yfinance 로 일별 종가를 가져와 {value, delta_pp, spark, time} 반환.
+    네트워크/티커 오류 시 None.
+
+    - value: 최신 종가
+    - delta_pp: 직전 거래일 대비 변동 (절대값 — 단위는 호출자가 unit 으로 표시)
+    - spark: 최근 30개 종가 (스파크라인용)
+    - time: YYYYMMDD
+    """
+    try:
+        import yfinance as yf  # 늦은 import — yfinance 미설치/오프라인에서도 generate 가 죽지 않게
+    except ImportError:
+        print(f"[WARN] yfinance 미설치 — {ticker} 스킵")
+        return None
+    try:
+        h = yf.Ticker(ticker).history(period=period, interval="1d", auto_adjust=False)
+        if h is None or h.empty:
+            print(f"[WARN] yfinance 빈 결과 — {ticker}")
+            return None
+        closes = [float(c) for c in h["Close"].dropna().tolist()]
+        if not closes:
+            return None
+        last = closes[-1]
+        prev = closes[-2] if len(closes) >= 2 else None
+        delta = round(last - prev, 4) if prev is not None else None
+        spark = [round(c, 4) for c in closes[-30:]]
+        last_date = h.index[-1].strftime("%Y%m%d")
+        return {"value": last, "delta_pp": delta, "spark": spark, "time": last_date}
+    except Exception as e:
+        print(f"[WARN] yfinance 요청 실패 ({ticker}): {e}")
+        return None
+
+
 def build_payload() -> dict:
     load_api_key()
     ticker_image_version = ticker_cache_query_value()
@@ -225,14 +259,11 @@ def build_payload() -> dict:
     m_start, m_end = _month_span(36, today)
 
     footnotes = [
-        "데이터 출처: 한국은행 경제통계시스템(ECOS) Open API.",
-        "미·일 장기금리는 통계표 902Y023 「주요국제금리」의 장기금리(IRLT)이며, "
-        "미국 국채 만기 10년 수익률과 유사한 지표로 쓰이지만 정의가 다를 수 있습니다.",
-        "미국 단기금리는 같은 표의 단기금리(IR3TIB)로, 정책·단기 시장 금리에 가깝습니다(만기 2년 국채와 동일하지 않을 수 있음).",
+        "데이터 출처: 한국은행 경제통계시스템(ECOS) Open API · Yahoo Finance(미국채·코스피).",
         "ECOS 「일별 시장금리」(817Y002)에는 은행채 5년·AAA 무보증 항목이 없어 국고채(5년)로 표시합니다.",
-        "코픽스 전용 시리즈가 없어 「예금은행 대출금리(신규취급액)」 변동형 주택담보대출 금리를 참고용으로 표시합니다.",
         "한국 기준금리 증감은 전월 대비(%p)입니다. 국고채(3·5년)·환율 등 일별 시리즈 증감은 직전 관측일 대비이며, "
         "당일 미공시 시 마지막 관측일 수치를 씁니다. Open API가 당일(KST)로 아직 반영되지 않았을 때는 ECOS 웹 메인 실시간 지표로 일부 항목을 보완합니다.",
+        "미국 국채 10년(^TNX) · 3개월(^IRX) · 코스피(^KS11) 는 Yahoo Finance 실시간 일별 종가 기준입니다.",
     ]
 
     series: dict[str, dict] = {}
@@ -301,16 +332,8 @@ def build_payload() -> dict:
         "note": "817Y002·010101000·일",
     }
 
-    r = _rows(f"1/1000/121Y006/M/202301/{m_end}/BECBLA030202")
-    t, v = last_data_value(r)
-    series["cofix_proxy"] = {
-        "label": "주택담보 변동(신규) ※코픽스 참고",
-        "value": _fmt_num(v, 2),
-        "unit": "%",
-        "time": t,
-        "spark": _spark_values(r, 24),
-        "note": "121Y006·BECBLA030202·월",
-    }
+    # ※ 기존 cofix_proxy (121Y006 BECBLA030202) 는 실제 COFIX 가 아니라 ECOS 신규 변동형
+    # 주담대 평균금리였음 — 정확성 위해 제거. 대체로 KOSPI(아래)를 추가.
 
     # ── 해외 정책금리·국제금리 (월) ─────────────────────
     r = _rows(f"1/1000/902Y006/M/202201/{m_end}/US")
@@ -350,29 +373,31 @@ def build_payload() -> dict:
         "note": "902Y006·JP·월",
     }
 
-    r = _rows(f"1/1000/902Y023/M/202201/{m_end}/IRLT/USA")
-    t, v = last_data_value(r)
-    series["us_long"] = {
-        "label": "미국 장기금리(IRLT)",
-        "value": _fmt_num(v, 2),
-        "unit": "%",
-        "time": t,
-        "delta_pp": _delta_pp_monthly_mom(r),
-        "spark": _spark_values(r, 24),
-        "note": "902Y023·IRLT·USA·월 (≈10Y)",
-    }
-
-    r = _rows(f"1/1000/902Y023/M/202201/{m_end}/IR3TIB/USA")
-    t, v = last_data_value(r)
-    series["us_short"] = {
-        "label": "미국 단기금리(IR3TIB)",
-        "value": _fmt_num(v, 2),
-        "unit": "%",
-        "time": t,
-        "delta_pp": _delta_pp_monthly_mom(r),
-        "spark": _spark_values(r, 24),
-        "note": "902Y023·IR3TIB·USA·월",
-    }
+    # ※ 기존 us_long (902Y023 IRLT) / us_short (IR3TIB) 는 각각 일반 장기금리·인터뱅크라서
+    # 미국 국채 10년·2년과 정의가 다름. 정확성 위해 제거하고, yfinance 의
+    # ^TNX(10Y T-Note) / ^IRX(13W T-Bill) 로 공식 미국채 수익률을 가져온다.
+    yf_us10 = _fetch_yfinance("^TNX")
+    if yf_us10:
+        series["us_t10y"] = {
+            "label": "미국 국채 10년",
+            "value": _fmt_num(str(yf_us10["value"]), 2),
+            "unit": "%",
+            "time": yf_us10["time"],
+            "delta_pp": yf_us10["delta_pp"],
+            "spark": yf_us10["spark"],
+            "note": "yfinance ^TNX · 일",
+        }
+    yf_us3m = _fetch_yfinance("^IRX")
+    if yf_us3m:
+        series["us_t3m"] = {
+            "label": "미국 국채 3개월",
+            "value": _fmt_num(str(yf_us3m["value"]), 2),
+            "unit": "%",
+            "time": yf_us3m["time"],
+            "delta_pp": yf_us3m["delta_pp"],
+            "spark": yf_us3m["spark"],
+            "note": "yfinance ^IRX · 일",
+        }
 
     r = _rows(f"1/1000/902Y023/M/202201/{m_end}/IRLT/JPN")
     t, v = last_data_value(r)
@@ -402,6 +427,19 @@ def build_payload() -> dict:
             "delta_pp": _delta_vs_previous_observation(r),
             "spark": _spark_values(r, 30),
             "note": f"731Y001·{code}·일",
+        }
+
+    # ── 한국 주식 시장 (일, yfinance) ────────────────
+    yf_kospi = _fetch_yfinance("^KS11")
+    if yf_kospi:
+        series["kospi"] = {
+            "label": "코스피",
+            "value": _fmt_num(str(yf_kospi["value"]), 2),
+            "unit": "p",
+            "time": yf_kospi["time"],
+            "delta_pp": yf_kospi["delta_pp"],
+            "spark": yf_kospi["spark"],
+            "note": "yfinance ^KS11 · 일",
         }
 
     # ── 물가 (월) ─────────────────────────────────────

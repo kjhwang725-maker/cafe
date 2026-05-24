@@ -237,7 +237,7 @@
     </div>
 
     <div class="footer">
-      <b>NAVER CAFE</b> &nbsp;·&nbsp; 공간시장 &nbsp;·&nbsp; 출처: 한국은행 ECOS
+      <b>NAVER CAFE</b> &nbsp;·&nbsp; 공간시장 &nbsp;·&nbsp; 출처: 한국은행 ECOS · Yahoo Finance
     </div>
 
   </div>
@@ -427,23 +427,23 @@
         rateRow("국고채 3년",   s.kr_gov_3y,      2) +
         rateRow("국고채 5년",   s.kr_gov_5y,      2) +
         rateRow("CD 91일",     s.cd_91,           3) +
-        rateRow("콜금리(1일)",  s.call_rate,      3) +
-        rateRow("주담대 변동(신규)", s.cofix_proxy, 2);
+        rateRow("콜금리(1일)",  s.call_rate,      3);
 
-      // ── 환율
+      // ── 환율·시장 (KOSPI 포함)
       $("card-fx").innerHTML =
-        cardHead("amber", "banknote", "환율", "FX · KRW") +
+        cardHead("amber", "banknote", "환율·시장", "FX · KOSPI") +
+        fxRow("코스피", s.kospi, 2) +
         fxRow("원/달러", s.fx_usd, 2) +
         fxRow("원/100엔", s.fx_jpy, 2) +
         fxRow("원/유로", s.fx_eur, 2);
 
-      // ── 미국 금리
+      // ── 미국 금리 (yfinance 공식 미국채 수익률)
       $("card-us").innerHTML =
         cardHead("violet", "dollar-sign", "미국 금리", "US Rates") +
-        rateRow("기준금리",     s.us_policy, 2) +
-        rateRow("단기금리",     s.us_short,  2) +
-        rateRow("장기금리(≈10Y)", s.us_long, 2) +
-        rateRow("ECB 정책금리", s.ecb_rate,  2);
+        rateRow("기준금리",      s.us_policy,    2) +
+        rateRow("국채 3개월",    s.us_t3m,       2) +
+        rateRow("국채 10년",     s.us_t10y,      2) +
+        rateRow("ECB 정책금리",  s.ecb_rate,     2);
 
       // ── 일본 금리
       $("card-jp").innerHTML =
