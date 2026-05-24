@@ -202,6 +202,15 @@ def _delta_vs_previous_observation(rows: list[dict]) -> float | None:
     return round(last.value - prev.value, 4)
 
 
+def _spark_values(rows: list[dict], n: int = 24) -> list[float]:
+    """최근 n개 관측치 값만 추출 — 스파크라인 그래프용. 시간순 오름차순."""
+    pts = rows_to_points(rows)
+    if not pts:
+        return []
+    tail = pts[-n:] if len(pts) > n else pts
+    return [round(p.value, 4) for p in tail]
+
+
 def build_payload() -> dict:
     load_api_key()
     ticker_image_version = ticker_cache_query_value()
@@ -209,7 +218,8 @@ def build_payload() -> dict:
     today = now.date()
     # 일별 ECOS: 공시 시차로 당일만 두면 최신 행이 빠질 수 있어 종료일을 넉넉히 잡음
     d_end = (today + timedelta(days=7)).strftime("%Y%m%d")
-    d_start = (today - timedelta(days=14)).strftime("%Y%m%d")
+    # 스파크라인용으로 최소 ~30 영업일 확보 (이전 14일 → 60일)
+    d_start = (today - timedelta(days=60)).strftime("%Y%m%d")
     d_start_mom = (today - timedelta(days=130)).strftime("%Y%m%d")
 
     m_start, m_end = _month_span(36, today)
@@ -237,6 +247,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": d_pol,
+        "spark": _spark_values(r, 24),
         "note": "722Y001·0101000·월",
     }
 
@@ -249,6 +260,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": d_g3,
+        "spark": _spark_values(r, 30),
         "note": "817Y002·010200000·일",
     }
 
@@ -261,6 +273,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": d_g5,
+        "spark": _spark_values(r, 30),
         "note": "817Y002·010200001·일",
     }
 
@@ -272,6 +285,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": _delta_vs_previous_observation(r),
+        "spark": _spark_values(r, 30),
         "note": "817Y002·010502000·일",
     }
 
@@ -283,6 +297,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": _delta_vs_previous_observation(r),
+        "spark": _spark_values(r, 30),
         "note": "817Y002·010101000·일",
     }
 
@@ -293,6 +308,7 @@ def build_payload() -> dict:
         "value": _fmt_num(v, 2),
         "unit": "%",
         "time": t,
+        "spark": _spark_values(r, 24),
         "note": "121Y006·BECBLA030202·월",
     }
 
@@ -306,6 +322,7 @@ def build_payload() -> dict:
         "time": t,
         "delta_pp": _delta_pp_monthly_mom(r),
         "rate_decimals": 3,
+        "spark": _spark_values(r, 24),
         "note": "902Y006·US·월",
     }
 
@@ -317,6 +334,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": _delta_pp_monthly_mom(r),
+        "spark": _spark_values(r, 24),
         "note": "902Y006·XM·월",
     }
 
@@ -328,6 +346,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": _delta_pp_monthly_mom(r),
+        "spark": _spark_values(r, 24),
         "note": "902Y006·JP·월",
     }
 
@@ -339,6 +358,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": _delta_pp_monthly_mom(r),
+        "spark": _spark_values(r, 24),
         "note": "902Y023·IRLT·USA·월 (≈10Y)",
     }
 
@@ -350,6 +370,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": _delta_pp_monthly_mom(r),
+        "spark": _spark_values(r, 24),
         "note": "902Y023·IR3TIB·USA·월",
     }
 
@@ -361,6 +382,7 @@ def build_payload() -> dict:
         "unit": "%",
         "time": t,
         "delta_pp": _delta_pp_monthly_mom(r),
+        "spark": _spark_values(r, 24),
         "note": "902Y023·IRLT·JPN·월 (≈10Y)",
     }
 
@@ -378,6 +400,7 @@ def build_payload() -> dict:
             "unit": "원",
             "time": t,
             "delta_pp": _delta_vs_previous_observation(r),
+            "spark": _spark_values(r, 30),
             "note": f"731Y001·{code}·일",
         }
 
@@ -390,6 +413,7 @@ def build_payload() -> dict:
         "value": _fmt_num(v, 2),
         "unit": "2020=100",
         "time": t,
+        "spark": _spark_values(r, 24),
         "note": "402Y014·총지수·월",
     }
 
@@ -400,6 +424,7 @@ def build_payload() -> dict:
         "value": _fmt_num(v, 2),
         "unit": "2020=100",
         "time": t,
+        "spark": _spark_values(r, 24),
         "note": "404Y014·총지수·월",
     }
 

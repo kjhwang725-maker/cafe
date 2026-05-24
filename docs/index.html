@@ -153,7 +153,7 @@
   /* row */
   .row {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr 64px auto;
     align-items: center;
     gap: 10px;
     padding: 8px 0;
@@ -162,6 +162,8 @@
   .row:first-of-type { border-top: 0; padding-top: 4px; }
   .row .label { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.25; }
   .row .meta  { font-size: 10.5px; color: var(--ink-3); font-weight: 500; margin-top: 1px; }
+  .row .spark { display: flex; align-items: center; justify-content: center; height: 22px; }
+  .row .spark svg { width: 100%; height: 22px; display: block; }
   .row .right { display: flex; align-items: baseline; gap: 6px; }
   .row .val   { font-size: 17px; font-weight: 800; color: var(--ink); }
   .row .val .u { font-size: 10.5px; font-weight: 700; color: var(--ink-3); margin-left: 2px; }
@@ -169,6 +171,9 @@
   .chg.up   { color: var(--up);   background: rgba(220,38,38,.08); }
   .chg.down { color: var(--down); background: rgba(37,99,235,.08); }
   .chg.flat { color: var(--ink-3); background: rgba(148,163,184,.12); }
+  /* KPI 스파크라인 */
+  .kpi .kpi-spark { height: 18px; margin-top: 4px; }
+  .kpi .kpi-spark svg { width: 100%; height: 18px; display: block; }
 
   /* error / empty */
   .err { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 12.5px; }
@@ -256,6 +261,48 @@
     if (isNaN(n)) return String(v);
     return n.toLocaleString("ko-KR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
+  /**
+   * 인라인 SVG 스파크라인. trend: "up" → 빨강, "down" → 파랑, "flat" → 회색.
+   * w/h 는 viewBox 기준; CSS 가 폭 100% 늘림.
+   */
+  function sparkline(values, trend, w, h) {
+    if (!Array.isArray(values) || values.length < 2) return "";
+    w = w || 64; h = h || 22;
+    const pad = 1.5;
+    const min = Math.min.apply(null, values);
+    const max = Math.max.apply(null, values);
+    const range = (max - min) || 1;
+    const step = (w - pad * 2) / (values.length - 1);
+    const pts = values.map((v, i) => {
+      const x = pad + i * step;
+      const y = h - pad - ((v - min) / range) * (h - pad * 2);
+      return x.toFixed(1) + "," + y.toFixed(1);
+    });
+    const stroke =
+      trend === "up"   ? "#dc2626" :
+      trend === "down" ? "#2563eb" : "#94a3b8";
+    const fill =
+      trend === "up"   ? "rgba(220,38,38,.10)" :
+      trend === "down" ? "rgba(37,99,235,.10)" : "rgba(148,163,184,.10)";
+    const linePath = "M" + pts.join(" L");
+    const areaPath = linePath + ` L${(pad + (values.length - 1) * step).toFixed(1)},${(h - pad).toFixed(1)} L${pad},${(h - pad).toFixed(1)} Z`;
+    const lastX = (pad + (values.length - 1) * step).toFixed(1);
+    const lastY = (h - pad - ((values[values.length - 1] - min) / range) * (h - pad * 2)).toFixed(1);
+    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="${areaPath}" fill="${fill}" stroke="none"/>
+      <path d="${linePath}" fill="none" stroke="${stroke}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${lastX}" cy="${lastY}" r="1.8" fill="${stroke}"/>
+    </svg>`;
+  }
+  function trendOf(values) {
+    if (!Array.isArray(values) || values.length < 2) return "flat";
+    const a = values[0], b = values[values.length - 1];
+    const diff = b - a;
+    const scale = Math.max(Math.abs(a), Math.abs(b), 1e-6);
+    if (Math.abs(diff) / scale < 0.001) return "flat";
+    return diff > 0 ? "up" : "down";
+  }
+
   function chgBadge(d, asPct, decimals) {
     if (d == null || d === "" || isNaN(Number(d))) return `<span class="chg flat">—</span>`;
     const n = Number(d);
@@ -266,9 +313,16 @@
     return `<span class="chg ${cls}">${sign} ${Math.abs(n).toFixed(dec)}${asPct ? "%p" : ""}</span>`;
   }
 
+  function sparkCell(spark) {
+    if (!Array.isArray(spark) || spark.length < 2) {
+      return `<div class="spark"></div>`;
+    }
+    return `<div class="spark">${sparkline(spark, trendOf(spark))}</div>`;
+  }
+
   function rateRow(label, s, decimals) {
     if (!s || s.value == null) {
-      return `<div class="row"><div><div class="label">${esc(label)}</div></div><div class="right"><span class="val">—</span></div></div>`;
+      return `<div class="row"><div><div class="label">${esc(label)}</div></div><div class="spark"></div><div class="right"><span class="val">—</span></div></div>`;
     }
     const dec = decimals != null ? decimals : (s.rate_decimals != null ? Number(s.rate_decimals) : 2);
     const v = parseFloat(String(s.value).replace(/[\s,]/g, ""));
@@ -279,6 +333,7 @@
           <div class="label">${esc(label)}</div>
           ${t ? `<div class="meta">${esc(t)}</div>` : ""}
         </div>
+        ${sparkCell(s.spark)}
         <div class="right">
           <span class="val num">${isNaN(v) ? esc(s.value) : v.toFixed(dec)}<span class="u">%</span></span>
           ${chgBadge(s.delta_pp, true, dec)}
@@ -287,7 +342,7 @@
   }
   function fxRow(label, s, decimals) {
     if (!s || s.value == null) {
-      return `<div class="row"><div><div class="label">${esc(label)}</div></div><div class="right"><span class="val">—</span></div></div>`;
+      return `<div class="row"><div><div class="label">${esc(label)}</div></div><div class="spark"></div><div class="right"><span class="val">—</span></div></div>`;
     }
     const dec = decimals != null ? decimals : 2;
     const v = parseFloat(String(s.value).replace(/[\s,]/g, ""));
@@ -298,6 +353,7 @@
           <div class="label">${esc(label)}</div>
           ${t ? `<div class="meta">${esc(t)}</div>` : ""}
         </div>
+        ${sparkCell(s.spark)}
         <div class="right">
           <span class="val num">${isNaN(v) ? esc(s.value) : v.toLocaleString("ko-KR", { minimumFractionDigits: dec, maximumFractionDigits: dec })}<span class="u">${esc(s.unit || "")}</span></span>
           ${chgBadge(s.delta_pp, false, dec)}
@@ -306,7 +362,7 @@
   }
   function idxRow(label, s) {
     if (!s || s.value == null) {
-      return `<div class="row"><div><div class="label">${esc(label)}</div></div><div class="right"><span class="val">—</span></div></div>`;
+      return `<div class="row"><div><div class="label">${esc(label)}</div></div><div class="spark"></div><div class="right"><span class="val">—</span></div></div>`;
     }
     const v = parseFloat(String(s.value).replace(/[\s,]/g, ""));
     const t = timeLabel(s);
@@ -317,6 +373,7 @@
           <div class="label">${esc(label)}</div>
           ${t ? `<div class="meta">${esc(t)}${s.unit === "2020=100" ? " · 2020=100" : ""}</div>` : ""}
         </div>
+        ${sparkCell(s.spark)}
         <div class="right">
           <span class="val num">${isNaN(v) ? esc(s.value) : v.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${u ? `<span class="u">${esc(u)}</span>` : ""}</span>
         </div>
@@ -344,7 +401,9 @@
       else if (dn > 0) chgHtml = `<span style="color:#f87171">▲ ${Math.abs(dn).toFixed(dec)}${suffix === "%" ? "%p" : ""}</span>`;
       else             chgHtml = `<span style="color:#60a5fa">▼ ${Math.abs(dn).toFixed(dec)}${suffix === "%" ? "%p" : ""}</span>`;
     }
-    return `<div class="kpi"><div class="name">${esc(name)}</div><div class="val num">${valStr}${suffix ? `<span class="u">${esc(suffix)}</span>` : ""}</div><div class="chg">${chgHtml}</div></div>`;
+    const spark = (Array.isArray(s.spark) && s.spark.length >= 2)
+      ? `<div class="kpi-spark">${sparkline(s.spark, trendOf(s.spark), 80, 18)}</div>` : "";
+    return `<div class="kpi"><div class="name">${esc(name)}</div><div class="val num">${valStr}${suffix ? `<span class="u">${esc(suffix)}</span>` : ""}</div><div class="chg">${chgHtml}</div>${spark}</div>`;
   }
 
   fetch("data.json?v=" + Date.now(), { cache: "no-store" })
