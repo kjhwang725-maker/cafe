@@ -65,6 +65,18 @@ def _run_refresh_bat() -> None:
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONUTF8"] = "1"
+    # Windows: 자식·손자 프로세스(cmd/git/python)가 콘솔 창을 띄우지 않게 한다.
+    # CREATE_NO_WINDOW + DETACHED_PROCESS 조합이면 cafe_door.bat 안의 git push 등도
+    # 새 콘솔을 열지 않음. STARTUPINFO 의 SW_HIDE 도 함께 적용해서 일부 도구가
+    # 콘솔을 강제로 만들 때도 보이지 않도록.
+    popen_kwargs = {}
+    if sys.platform == "win32":
+        CREATE_NO_WINDOW = 0x08000000
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 0  # SW_HIDE
+        popen_kwargs["creationflags"] = CREATE_NO_WINDOW
+        popen_kwargs["startupinfo"] = si
     try:
         proc = subprocess.Popen(
             ["cmd", "/c", str(REFRESH_BAT)] if sys.platform == "win32" else [str(REFRESH_BAT)],
@@ -76,6 +88,7 @@ def _run_refresh_bat() -> None:
             errors="replace",
             bufsize=1,
             env=env,
+            **popen_kwargs,
         )
         assert proc.stdout is not None
         for line in proc.stdout:
