@@ -162,8 +162,9 @@
   .row:first-of-type { border-top: 0; padding-top: 4px; }
   .row .label { font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.25; }
   .row .meta  { font-size: 10.5px; color: var(--ink-3); font-weight: 500; margin-top: 1px; }
-  .row .spark { display: flex; align-items: center; justify-content: center; height: 22px; }
-  .row .spark svg { width: 100%; height: 22px; display: block; }
+  .row .spark { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+  .row .spark svg { width: 100%; height: 20px; display: block; }
+  .row .spark .period { font-size: 8.5px; color: var(--ink-3); font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
   .row .right { display: flex; align-items: baseline; gap: 6px; }
   .row .val   { font-size: 17px; font-weight: 800; color: var(--ink); }
   .row .val .u { font-size: 10.5px; font-weight: 700; color: var(--ink-3); margin-left: 2px; }
@@ -172,8 +173,9 @@
   .chg.down { color: var(--down); background: rgba(37,99,235,.08); }
   .chg.flat { color: var(--ink-3); background: rgba(148,163,184,.12); }
   /* KPI 스파크라인 */
-  .kpi .kpi-spark { height: 18px; margin-top: 4px; }
-  .kpi .kpi-spark svg { width: 100%; height: 18px; display: block; }
+  .kpi .kpi-spark { display:flex; flex-direction:column; gap:1px; margin-top: 4px; }
+  .kpi .kpi-spark svg { width: 100%; height: 16px; display: block; }
+  .kpi .kpi-spark .period { font-size: 8.5px; color: rgba(255,255,255,.45); font-weight: 600; line-height: 1; text-align: right; letter-spacing: -0.02em; }
 
   /* error / empty */
   .err { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 12.5px; }
@@ -313,11 +315,21 @@
     return `<span class="chg ${cls}">${sign} ${Math.abs(n).toFixed(dec)}${asPct ? "%p" : ""}</span>`;
   }
 
-  function sparkCell(spark) {
+  /** spark 길이 + note 의 ·월/·일 토큰으로 "최근 N개월" / "최근 N일" 자동 추론. */
+  function sparkPeriodLabel(s) {
+    if (!s || !Array.isArray(s.spark) || s.spark.length < 2) return "";
+    const n = s.spark.length;
+    const isDaily = /·일\s*$/.test(String(s.note || ""));
+    return isDaily ? `${n}일` : `${n}개월`;
+  }
+
+  function sparkCell(s) {
+    const spark = s && s.spark;
     if (!Array.isArray(spark) || spark.length < 2) {
       return `<div class="spark"></div>`;
     }
-    return `<div class="spark">${sparkline(spark, trendOf(spark))}</div>`;
+    const period = sparkPeriodLabel(s);
+    return `<div class="spark">${sparkline(spark, trendOf(spark))}<div class="period">${esc(period)}</div></div>`;
   }
 
   function rateRow(label, s, decimals) {
@@ -333,7 +345,7 @@
           <div class="label">${esc(label)}</div>
           ${t ? `<div class="meta">${esc(t)}</div>` : ""}
         </div>
-        ${sparkCell(s.spark)}
+        ${sparkCell(s)}
         <div class="right">
           <span class="val num">${isNaN(v) ? esc(s.value) : v.toFixed(dec)}<span class="u">%</span></span>
           ${chgBadge(s.delta_pp, true, dec)}
@@ -353,7 +365,7 @@
           <div class="label">${esc(label)}</div>
           ${t ? `<div class="meta">${esc(t)}</div>` : ""}
         </div>
-        ${sparkCell(s.spark)}
+        ${sparkCell(s)}
         <div class="right">
           <span class="val num">${isNaN(v) ? esc(s.value) : v.toLocaleString("ko-KR", { minimumFractionDigits: dec, maximumFractionDigits: dec })}<span class="u">${esc(s.unit || "")}</span></span>
           ${chgBadge(s.delta_pp, false, dec)}
@@ -373,7 +385,7 @@
           <div class="label">${esc(label)}</div>
           ${t ? `<div class="meta">${esc(t)}${s.unit === "2020=100" ? " · 2020=100" : ""}</div>` : ""}
         </div>
-        ${sparkCell(s.spark)}
+        ${sparkCell(s)}
         <div class="right">
           <span class="val num">${isNaN(v) ? esc(s.value) : v.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}${u ? `<span class="u">${esc(u)}</span>` : ""}</span>
         </div>
@@ -402,7 +414,7 @@
       else             chgHtml = `<span style="color:#60a5fa">▼ ${Math.abs(dn).toFixed(dec)}${suffix === "%" ? "%p" : ""}</span>`;
     }
     const spark = (Array.isArray(s.spark) && s.spark.length >= 2)
-      ? `<div class="kpi-spark">${sparkline(s.spark, trendOf(s.spark), 80, 18)}</div>` : "";
+      ? `<div class="kpi-spark">${sparkline(s.spark, trendOf(s.spark), 80, 16)}<div class="period">${esc(sparkPeriodLabel(s))}</div></div>` : "";
     return `<div class="kpi"><div class="name">${esc(name)}</div><div class="val num">${valStr}${suffix ? `<span class="u">${esc(suffix)}</span>` : ""}</div><div class="chg">${chgHtml}</div>${spark}</div>`;
   }
 
