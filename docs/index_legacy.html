@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- iframe·CDN이 옛 HTML을 길게 캐시하는 경우 완화 (브라우저마다 효과 다름) -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
+<title>네이버카페 공간시장</title>
+<script>
+(function () {
+  try {
+    if (location.protocol !== "http:" && location.protocol !== "https:") return;
+    var u = new URL(location.href);
+    if (!u.searchParams.has("_cb")) {
+      u.searchParams.set("_cb", String(Date.now()));
+      location.replace(u.toString());
+    }
+  } catch (e) {}
+})();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  html {
+    background-color: #ffffff;
+  }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.02em;
+    background-color: #ffffff;
+    line-height: 1.6;
+  }
+  .fixed-container {
+    width: 740px;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 40px 20px 8px 20px;
+  }
+  @keyframes spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .animate-spin-slow {
+    animation: spin-slow 10s linear infinite;
+  }
+  .kr-rate-trend-icon {
+    width: 1rem;
+    height: 1rem;
+    stroke-width: 2px;
+  }
+  /* ticker.png 캡처 전용: 헤더·금리 3열·시장지표만 (부동산 마켓 분석 제외) */
+  #ticker-board {
+    width: 100%;
+    max-width: 740px;
+    margin: 0 auto;
+  }
+</style>
+</head>
+<body class="text-slate-800 text-sm">
+<div class="fixed-container">
+  <div id="ticker-board">
+  <header class="mb-10 flex flex-col gap-6 min-[1001px]:flex-row min-[1001px]:items-center min-[1001px]:justify-between">
+    <div class="flex min-w-0 items-center gap-5">
+      <div class="bg-[#03c75a] p-4 rounded-2xl shadow-lg shadow-[#03c75a]/30 flex items-center justify-center" title="네이버 카페">
+        <!-- 네이버 카페 앱 아이콘 스타일: 초록 배경 위 흰 컵 + 스팀 실루엣 -->
+        <svg class="w-8 h-8 shrink-0" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="네이버 카페">
+          <rect x="10.2" y="5" width="2.6" height="5.2" rx="1.3" fill="#fff" />
+          <rect x="14.7" y="4" width="2.6" height="6.2" rx="1.3" fill="#fff" />
+          <rect x="19.2" y="5" width="2.6" height="5.2" rx="1.3" fill="#fff" />
+          <path
+            fill="#fff"
+            d="M9.5 14.8h13a1.5 1.5 0 011.5 1.5v4.6a5.6 5.6 0 01-5.6 5.6h-4.8a5.6 5.6 0 01-5.6-5.6v-4.6a1.5 1.5 0 011.5-1.5z"
+          />
+          <path fill="#fff" d="M23 16h2.6a3.4 3.4 0 110 6.8H23V16z" />
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2 text-[#03c75a] font-bold tracking-[0.1em] text-xs uppercase mb-1">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+          Space Market Intelligence
+        </div>
+        <h1 class="text-3xl font-black tracking-tight text-slate-900">
+          네이버카페 공간시장
+        </h1>
+        <p class="text-slate-500 mt-1 flex items-center gap-1.5 text-sm font-medium">
+          디벨로퍼 '부동산 관련' 종합 빅데이터 포럼으로
+        </p>
+      </div>
+    </div>
+    <div class="flex w-full min-w-0 flex-col items-end justify-center gap-0.5 rounded-2xl border border-slate-200 bg-white/80 px-5 py-3 text-right backdrop-blur shadow-sm min-[1001px]:w-auto">
+      <div class="text-xs font-black text-[#03c75a] tracking-wide">최종 업데이트일</div>
+      <div id="generated" class="text-sm font-bold text-slate-600 tabular-nums">데이터 로드 중…</div>
+    </div>
+  </header>
+
+  <div id="error" class="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800 shadow-sm" style="display:none;"></div>
+
+  <div class="mb-10 space-y-5">
+    <div id="finance-row-rates" class="grid min-w-0 grid-cols-1 gap-5 min-[1001px]:grid-cols-3"></div>
+    <div id="finance-row-market" class="w-full min-w-0"></div>
+  </div>
+  </div>
+
+  <footer class="text-center text-sm font-semibold text-slate-400 tracking-tight pt-5 pb-1 mt-1">
+    네이버 카페 공간시장
+  </footer>
+</div>
+
+<script>
+(function () {
+  function esc(s) {
+    if (s == null) return "";
+    var d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  /** 미국·일본 금리: data.json의 rate_decimals와 무관하게 소수 둘째 자리까지 표시 */
+  function seriesRate2Decimals(orig) {
+    if (!orig || typeof orig !== "object") return orig;
+    return Object.assign({}, orig, { rate_decimals: 2 });
+  }
+
+  function yyDotMmFromTime(t) {
+    if (!t || t.length < 6) return "";
+    var d = String(t).replace(/\D/g, "");
+    if (d.length < 6) return "";
+    var y = d.slice(0, 4);
+    var m = d.slice(4, 6);
+    return "'" + y.slice(2) + "." + m;
+  }
+
+  /** ECOS note 끝이 「·일」이면 일별 통계 → ('26.04.10), 「·월」이면 ('26.04) */
+  function isDailySeriesNote(note) {
+    if (note == null || note === "") return false;
+    var parts = String(note).split("·");
+    var last = parts[parts.length - 1].replace(/\s/g, "");
+    return last === "일";
+  }
+
+  function yyDotMmDdFromTime(t) {
+    var d = String(t).replace(/\D/g, "");
+    if (d.length < 8) return "";
+    var y = d.slice(0, 4);
+    var m = d.slice(4, 6);
+    var day = d.slice(6, 8);
+    return "'" + y.slice(2) + "." + m + "." + day;
+  }
+
+  function formatSeriesTime(s) {
+    if (!s || s.time == null || s.time === "") return "";
+    var raw = String(s.time);
+    var digits = raw.replace(/\D/g, "");
+    var datePart = "";
+    if (isDailySeriesNote(s.note)) {
+      if (digits.length >= 8) datePart = yyDotMmDdFromTime(digits.slice(0, 8));
+      else if (digits.length >= 6) datePart = yyDotMmFromTime(digits.slice(0, 6));
+    } else if (digits.length >= 6) {
+      datePart = yyDotMmFromTime(digits.slice(0, 6));
+    }
+    if (!datePart) return "";
+    if (s.trade_time) return datePart + " " + s.trade_time;
+    return datePart;
+  }
+
+  function krRateChangeLine(delta_pp) {
+    if (delta_pp == null || delta_pp === "") {
+      return (
+        '<div class="mt-1 flex items-center justify-end gap-1 text-sm font-medium text-slate-400">' +
+        '<i data-lucide="activity" class="kr-rate-trend-icon shrink-0 text-slate-400"></i>' +
+        "<span>—</span></div>"
+      );
+    }
+    var dn = Number(delta_pp);
+    if (isNaN(dn)) {
+      return (
+        '<div class="mt-1 flex items-center justify-end gap-1 text-sm font-medium text-slate-400">' +
+        '<i data-lucide="activity" class="kr-rate-trend-icon shrink-0 text-slate-400"></i>' +
+        "<span>—</span></div>"
+      );
+    }
+    if (Math.abs(dn) < 1e-9) {
+      return (
+        '<div class="mt-1 flex items-center justify-end gap-1 text-sm font-medium text-slate-400">' +
+        '<i data-lucide="activity" class="kr-rate-trend-icon shrink-0 text-slate-400"></i>' +
+        "<span>~ 0.00</span></div>"
+      );
+    }
+    if (dn > 0) {
+      return (
+        '<div class="mt-1 flex items-center justify-end gap-1 text-sm font-semibold">' +
+        '<i data-lucide="trending-up" class="kr-rate-trend-icon shrink-0 text-red-600"></i>' +
+        '<span class="text-red-600">+' +
+        Math.abs(dn).toFixed(2) +
+        "</span></div>"
+      );
+    }
+    return (
+      '<div class="mt-1 flex items-center justify-end gap-1 text-sm font-semibold">' +
+      '<i data-lucide="trending-down" class="kr-rate-trend-icon shrink-0 text-blue-600"></i>' +
+      '<span class="text-blue-600">' +
+      dn.toFixed(2) +
+      "</span></div>"
+    );
+  }
+
+  function krRateRowHtml(label, s) {
+    if (!s || s.value == null) {
+      return (
+        '<div class="flex justify-between gap-4">' +
+          '<span class="text-sm font-semibold text-slate-800">' +
+          esc(label) +
+          "</span>" +
+          '<span class="text-sm text-slate-400">—</span>' +
+          "</div>"
+      );
+    }
+    var dt = formatSeriesTime(s);
+    var val = parseFloat(String(s.value).replace(/\s/g, "").replace(/,/g, ""));
+    if (isNaN(val)) {
+      return (
+        '<div class="flex justify-between gap-4">' +
+          '<span class="text-sm font-semibold text-slate-800">' +
+          esc(label) +
+          "</span>" +
+          '<span class="text-sm text-slate-600">' +
+          esc(String(s.value)) +
+          "</span></div>"
+      );
+    }
+    var left =
+      '<div class="min-w-0 pr-2">' +
+      '<div class="text-sm font-bold leading-tight text-slate-800">' +
+      esc(label) +
+      "</div>" +
+      (dt ? '<div class="mt-1 text-xs font-medium text-slate-500">' + esc("(" + dt + ")") + "</div>" : "") +
+      "</div>";
+    var right =
+      '<div class="flex shrink-0 flex-col items-end tabular-nums">' +
+      '<div class="text-2xl font-black leading-none tracking-tight text-slate-900">' +
+      val.toFixed(s.rate_decimals != null && s.rate_decimals !== "" ? Number(s.rate_decimals) : 2) +
+      '<span class="ml-0.5 text-base font-bold text-slate-500">%</span>' +
+      "</div>" +
+      krRateChangeLine(s.delta_pp) +
+      "</div>";
+    return (
+      '<div class="flex w-full min-w-0 items-start justify-between gap-3">' +
+      left +
+      right +
+      "</div>"
+    );
+  }
+
+  /** 환율·지수·원화 등: 동일 좌우 레이아웃, 단위는 % 외 */
+  function financeRowMetricHtml(label, s) {
+    if (!s || s.value == null) {
+      return (
+        '<div class="flex justify-between gap-4">' +
+          '<span class="text-sm font-semibold text-slate-800">' +
+          esc(label) +
+          "</span>" +
+          '<span class="text-sm text-slate-400">—</span>' +
+          "</div>"
+      );
+    }
+    var dt = formatSeriesTime(s);
+    var u = String(s.unit || "").trim();
+    if (u === "2020=100") u = "";
+    var v = s.value;
+    var mainNum =
+      typeof v === "number"
+        ? v.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
+        : esc(String(v).replace(/\s/g, ","));
+    var left =
+      '<div class="min-w-0 pr-2">' +
+      '<div class="text-sm font-bold leading-tight text-slate-800">' +
+      esc(label) +
+      "</div>" +
+      (dt ? '<div class="mt-1 text-xs font-medium text-slate-500">' + esc("(" + dt + ")") + "</div>" : "") +
+      "</div>";
+    var sub =
+      s.market_sub && String(s.market_sub).trim()
+        ? '<div class="mt-1 max-w-[16rem] text-right text-xs font-medium text-slate-500">' + esc(s.market_sub) + "</div>"
+        : '<div class="mt-1">' + krRateChangeLine(s.delta_pp) + "</div>";
+    var right =
+      '<div class="flex shrink-0 flex-col items-end tabular-nums">' +
+      '<div class="text-2xl font-black leading-none tracking-tight text-slate-900">' +
+      mainNum +
+      (u
+        ? '<span class="ml-1 text-sm font-bold leading-tight text-slate-500">' + esc(u) + "</span>"
+        : "") +
+      "</div>" +
+      sub +
+      "</div>";
+    return (
+      '<div class="flex w-full min-w-0 items-start justify-between gap-3">' +
+      left +
+      right +
+      "</div>"
+    );
+  }
+
+  function financeRowUnified(label, s) {
+    if (!s || s.value == null) {
+      return krRateRowHtml(label, s);
+    }
+    if (String(s.unit || "").trim() === "%") {
+      return krRateRowHtml(label, s);
+    }
+    return financeRowMetricHtml(label, s);
+  }
+
+  /** 한국·미국·일본 금리·시장 지표 공통 카드. innerClass: 시장 지표 등에서 2열 그리드용. footerText: 카드 하단 출처(선택) */
+  function financeSectionRates(title, icon, colorClass, rowDefs, innerClass, footerText) {
+    innerClass = innerClass || "space-y-6";
+    var inner = rowDefs
+      .map(function (def) {
+        return financeRowUnified(def.label, def.s);
+      })
+      .join("");
+    var footer = "";
+    if (footerText) {
+      footer =
+        '<div class="mt-4 pt-3 border-t border-slate-100 text-center text-xs font-medium text-slate-400">' +
+        esc(footerText) +
+        "</div>";
+    }
+    return (
+      '<div class="min-w-0 bg-white rounded-2xl p-6 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.04)] border border-slate-200">' +
+        '<div class="flex items-center gap-3 mb-6">' +
+        '<div class="p-2.5 rounded-xl ' +
+        colorClass +
+        ' shadow-sm">' +
+        '<i data-lucide="' +
+        esc(icon) +
+        '" class="text-white w-5 h-5"></i>' +
+        "</div>" +
+        '<h3 class="font-extrabold text-slate-900 text-base">' +
+        esc(title) +
+        "</h3>" +
+        "</div>" +
+        '<div class="' +
+        innerClass +
+        '">' +
+        inner +
+        "</div>" +
+        footer +
+        "</div>"
+    );
+  }
+
+  fetch("data.json?v=" + Date.now(), { cache: "no-store" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("data.json 응답 오류 (" + r.status + ")");
+      return r.json();
+    })
+    .then(function (data) {
+      document.getElementById("error").style.display = "none";
+      var s = data.series || {};
+      var ga = data.generated_at || "";
+      var datePart = ga.length >= 10 ? ga.slice(0, 10) : "";
+      document.getElementById("generated").textContent = datePart || "—";
+
+      var krRateDefs = [
+        { label: "기준금리", s: s.kr_policy_rate },
+        { label: "국고채 3년", s: s.kr_gov_3y },
+        { label: "국고채 5년", s: s.kr_gov_5y },
+      ];
+      var usRateDefs = [
+        { label: "기준금리", s: seriesRate2Decimals(s.us_policy) },
+        { label: "단기금리(IR3TIB)", s: seriesRate2Decimals(s.us_short) },
+        { label: "장기금리(IRLT)", s: seriesRate2Decimals(s.us_long) },
+      ];
+      var marketDefs = [
+        { label: (s.fx_usd && s.fx_usd.label) || "원/달러(매매기준)", s: s.fx_usd },
+        { label: (s.fx_jpy && s.fx_jpy.label) || "원/100엔(매매기준)", s: s.fx_jpy },
+        { label: (s.fx_eur && s.fx_eur.label) || "원/유로(매매기준)", s: s.fx_eur },
+        { label: (s.export_px && s.export_px.label) || "수출물가지수", s: s.export_px },
+        { label: (s.ecb_rate && s.ecb_rate.label) || "ECB 정책금리(유로지역)", s: s.ecb_rate },
+      ];
+
+      var jpRateDefs = [
+        { label: "기준금리", s: seriesRate2Decimals(s.jp_policy) },
+        { label: "장기금리(IRLT)", s: seriesRate2Decimals(s.jp_long) },
+      ];
+
+      document.getElementById("finance-row-rates").innerHTML =
+        financeSectionRates("한국 금리", "globe", "bg-blue-600", krRateDefs) +
+        financeSectionRates("미국 금리", "dollar-sign", "bg-indigo-600", usRateDefs) +
+        financeSectionRates("일본 금리", "coins", "bg-teal-600", jpRateDefs);
+
+      document.getElementById("finance-row-market").innerHTML = financeSectionRates(
+        "시장 지표",
+        "activity",
+        "bg-rose-500",
+        marketDefs,
+        "grid grid-cols-1 gap-x-10 gap-y-8 min-[721px]:grid-cols-2",
+        "출처 : 한국은행"
+      );
+
+      if (typeof lucide !== "undefined") lucide.createIcons();
+    })
+    .catch(function (e) {
+      var err = document.getElementById("error");
+      err.style.display = "block";
+      document.getElementById("generated").textContent = "";
+      var detail = e && e.message ? String(e.message) : String(e);
+      if (location.protocol === "file:") {
+        err.className =
+          "mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950 shadow-sm";
+        err.innerHTML =
+          "<strong>로컬 파일로 연 상태입니다.</strong> 브라우저 보안 때문에 <code class=\"rounded bg-white/70 px-1.5 py-0.5 text-xs\">data.json</code>을 불러올 수 없습니다. " +
+          "프로젝트 루트에서 터미널에 <code class=\"rounded bg-white/70 px-1.5 py-0.5 text-xs\">python serve_docs.py</code> 실행 후 " +
+          "브라우저로 <strong>http://127.0.0.1:8765/index.html</strong> 을 여세요.";
+      } else {
+        err.className =
+          "mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800 shadow-sm";
+        err.textContent =
+          "데이터를 불러오지 못했습니다. " + detail + " — docs/data.json 존재 여부와 주소가 /index.html 기준인지 확인하세요.";
+      }
+    });
+})();
+</script>
+</body>
+</html>
