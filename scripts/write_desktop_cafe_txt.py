@@ -1,12 +1,11 @@
 """
-cafe-door.html 전체를 그대로 바탕화면 yyyy-mm-dd.txt 에만 저장합니다.
+cafe-door.html 전체를 그대로 바탕화면 공간시장.txt 에만 저장합니다(매 실행 덮어쓰기).
 파일 열기 → 전체 선택 → 카페 HTML에 붙여넣기 (사족 없음).
 """
 
 from __future__ import annotations
 
 import sys
-from datetime import date
 from pathlib import Path
 
 
@@ -38,8 +37,7 @@ def main() -> None:
     else:
         text = cafe.read_text(encoding="utf-8")
 
-    day = date.today().isoformat()
-    desk = _desktop_dir() / f"{day}.txt"
+    desk = _desktop_dir() / "공간시장.txt"
     desk.write_text(text, encoding="utf-8-sig")
     print(f"바탕화면 카페 붙여넣기용: {desk}")
 

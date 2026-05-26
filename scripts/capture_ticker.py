@@ -9,7 +9,7 @@ docs/index.html 화면을 렌더링해 PNG로 저장합니다 (헤드리스 Chro
   python scripts/capture_ticker.py --output docs/custom.png --full-page
 
 기본 저장: docs/yyyy-mm-dd.png (당일 재실행 시 덮어쓰기). GitHub Pages 호환용으로 동일 내용을 docs/ticker.png 에도 복사하고,
-Windows 바탕화면에도 동일 파일명(yyyy-mm-dd.png)으로 복사합니다.
+Windows 바탕화면에도 고정 파일명(공간시장.png)으로 복사합니다(매 실행 덮어쓰기).
 -o 로 경로를 직접 주면 해당 파일만 저장하고 ticker.png·바탕화면 복사는 하지 않습니다. --no-desktop 으로 바탕화면 복사만 끌 수 있습니다.
 
 기본은 브라우저에서 index.html 을 연 것과 동일하게 .fixed-container 전체(헤더~푸터·차트 포함).
@@ -110,7 +110,7 @@ def main() -> None:
     p.add_argument(
         "--no-desktop",
         action="store_true",
-        help="기본 저장 시 바탕화면(yyyy-mm-dd.png) 복사 생략",
+        help="기본 저장 시 바탕화면(공간시장.png) 복사 생략",
     )
     args = p.parse_args()
     if args.ticker_only:
@@ -188,7 +188,7 @@ def main() -> None:
         shutil.copy2(out, ticker)
         extra = f" (동일 내용 → {ticker})"
         if not args.no_desktop:
-            desk = _desktop_dir() / out.name
+            desk = _desktop_dir() / "공간시장.png"
             try:
                 desk.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(out, desk)

@@ -196,7 +196,7 @@ def generate_image():
     # 저장 시 dpi 정보 포함 (브라우저가 실제 크기로 인식)
     img.save(dated, optimize=True, dpi=(216, 216))
     shutil.copy2(dated, "docs/ticker.png")
-    desk = _desktop_dir() / f"{day}.png"
+    desk = _desktop_dir() / "공간시장.png"
     try:
         shutil.copy2(dated, desk)
         print(f"이미지 생성 완료: {dated} → 바탕화면: {desk} ({kst.strftime('%Y-%m-%d %H:%M KST')})")

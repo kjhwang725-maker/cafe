@@ -38,7 +38,7 @@ powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://purge.jsdelivr.n
 powershell -NoProfile -Command "Invoke-WebRequest -Uri ('https://purge.jsdelivr.net/gh/kjhwang725-maker/cafe@main/docs/%STAMP%.png') -UseBasicParsing | Out-Null" 2>nul
 echo CDN purge done.
 
-echo [5/5] 바탕화면 yyyy-mm-dd.txt — 카페 붙여넣기용 HTML (최종 cafe-door 반영^)
+echo [5/5] 바탕화면 공간시장.txt — 카페 붙여넣기용 HTML (최종 cafe-door 반영^)
 call :pyrun scripts\write_desktop_cafe_txt.py
 if errorlevel 1 goto :fail
 
