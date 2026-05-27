@@ -227,10 +227,10 @@ def _build_yf_series(ticker: str, label: str, unit: str, decimals: int) -> dict 
     }
 
 
-def _fetch_yfinance(ticker: str, period: str = "60d") -> dict | None:
+def _fetch_yfinance(ticker: str, period: str = "60d", retries: int = 3) -> dict | None:
     """
     yfinance 로 일별 종가를 가져와 {value, delta_pp, spark, time} 반환.
-    네트워크/티커 오류 시 None.
+    네트워크/티커 오류 시 None. 실패 시 최대 retries 회 재시도.
 
     - value: 최신 종가
     - delta_pp: 직전 거래일 대비 변동 (절대값 — 단위는 호출자가 unit 으로 표시)
@@ -242,23 +242,34 @@ def _fetch_yfinance(ticker: str, period: str = "60d") -> dict | None:
     except ImportError:
         print(f"[WARN] yfinance 미설치 — {ticker} 스킵")
         return None
-    try:
-        h = yf.Ticker(ticker).history(period=period, interval="1d", auto_adjust=False)
-        if h is None or h.empty:
-            print(f"[WARN] yfinance 빈 결과 — {ticker}")
-            return None
-        closes = [float(c) for c in h["Close"].dropna().tolist()]
-        if not closes:
-            return None
-        last = closes[-1]
-        prev = closes[-2] if len(closes) >= 2 else None
-        delta = round(last - prev, 4) if prev is not None else None
-        spark = [round(c, 4) for c in closes[-30:]]
-        last_date = h.index[-1].strftime("%Y%m%d")
-        return {"value": last, "delta_pp": delta, "spark": spark, "time": last_date}
-    except Exception as e:
-        print(f"[WARN] yfinance 요청 실패 ({ticker}): {e}")
-        return None
+    for attempt in range(1, retries + 1):
+        try:
+            h = yf.Ticker(ticker).history(period=period, interval="1d", auto_adjust=False)
+            if h is None or h.empty:
+                if attempt < retries:
+                    time.sleep(2 * attempt)
+                    continue
+                print(f"[WARN] yfinance 빈 결과 — {ticker}")
+                return None
+            closes = [float(c) for c in h["Close"].dropna().tolist()]
+            if not closes:
+                if attempt < retries:
+                    time.sleep(2 * attempt)
+                    continue
+                return None
+            last = closes[-1]
+            prev = closes[-2] if len(closes) >= 2 else None
+            delta = round(last - prev, 4) if prev is not None else None
+            spark = [round(c, 4) for c in closes[-30:]]
+            last_date = h.index[-1].strftime("%Y%m%d")
+            return {"value": last, "delta_pp": delta, "spark": spark, "time": last_date}
+        except Exception as e:
+            if attempt < retries:
+                print(f"[WARN] yfinance 재시도 {attempt}/{retries} ({ticker}): {e}")
+                time.sleep(2 * attempt)
+            else:
+                print(f"[WARN] yfinance 요청 실패 ({ticker}): {e}")
+    return None
 
 
 def build_payload() -> dict:
@@ -438,7 +449,9 @@ def build_payload() -> dict:
         ("esr_kendall", "365550.KS", "ESR켄달스퀘어(물류)",       "원", 0),
         ("prologis",    "PLD",       "Prologis(글로벌 산업용)",   "$", 2),
     ]
-    for key, ticker, label, unit, dec in yf_specs:
+    for i, (key, ticker, label, unit, dec) in enumerate(yf_specs):
+        if i > 0:
+            time.sleep(0.5)  # rate limit 방지
         s_yf = _build_yf_series(ticker, label, unit, dec)
         if s_yf:
             series[key] = s_yf
