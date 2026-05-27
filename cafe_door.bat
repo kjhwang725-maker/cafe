@@ -46,8 +46,7 @@ echo Done.
 exit /b 0
 
 :pyrun
-py -3 %*
-if errorlevel 1 python %*
+python %*
 exit /b %ERRORLEVEL%
 
 :fail

@@ -109,7 +109,7 @@
                     </div>
                     
                     <div id="price-index-chart-container" class="relative h-56 px-4 mb-6">
-                        <svg id="line-chart-svg" class="absolute inset-0 w-full h-full pointer-events-none px-4" preserveAspectRatio="none">
+                        <svg id="line-chart-svg" class="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
                             <path id="sales-path" class="line-path" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
                             <path id="rent-path" class="line-path" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
                         </svg>
@@ -195,7 +195,7 @@
                                     <div class="font-bold text-slate-900 text-xs">${item.value}</div>
                                     ${item.change ? `
                                         <div class="text-[9px] font-bold flex items-center justify-end gap-0.5 ${item.status === 'up' ? 'text-red-500' : item.status === 'down' ? 'text-blue-500' : 'text-slate-400'}">
-                                            <i data-lucide="${item.status === 'up' ? 'trending-up' : 'trending-down'}" class="w-2 h-2"></i>
+                                            <i data-lucide="${item.status === 'up' ? 'trending-up' : item.status === 'down' ? 'trending-down' : 'minus'}" class="w-2 h-2"></i>
                                             ${item.change}
                                         </div>
                                     ` : ''}
@@ -211,7 +211,7 @@
             const overlay = document.getElementById('chart-overlay');
             const salesPath = document.getElementById('sales-path');
             const rentPath = document.getElementById('rent-path');
-            const containerHeight = 224; // h-56
+            const containerHeight = document.getElementById('price-index-chart-container').clientHeight;
             
             let salesPoints = [];
             let rentPoints = [];
