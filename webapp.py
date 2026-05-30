@@ -113,6 +113,38 @@ def _run_refresh_bat() -> None:
 app = FastAPI(title="카페 전광판")
 
 
+# ── JS/HTML/CSS 캐시 방지 (순수 ASGI 미들웨어) ───────────────────
+# 앱 업데이트가 브라우저 캐시에 막혀 안 보이는 문제 방지. HTML·JS·CSS 응답에
+# no-store 를 부여한다. content-type 기준이라 "/"·확장자 없는 라우트도 커버.
+class _NoCacheMiddleware:
+    _TYPES = (b"text/html", b"text/css", b"application/javascript", b"text/javascript")
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def _send(message):
+            if message.get("type") == "http.response.start":
+                headers = list(message.get("headers") or [])
+                ctype = next((v.lower() for (k, v) in headers if k.lower() == b"content-type"), b"")
+                if any(ctype.startswith(t) for t in _NoCacheMiddleware._TYPES):
+                    headers = [(k, v) for (k, v) in headers
+                               if k.lower() not in (b"cache-control", b"pragma", b"expires")]
+                    headers += [(b"cache-control", b"no-cache, no-store, must-revalidate"),
+                                (b"pragma", b"no-cache"), (b"expires", b"0")]
+                    message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, _send)
+
+
+app.add_middleware(_NoCacheMiddleware)
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> HTMLResponse:
     return HTMLResponse(LANDING_HTML)
