@@ -463,18 +463,18 @@
       // ── 미국 금리 (yfinance 공식 미국채 수익률)
       $("card-us").innerHTML =
         cardHead("violet", "dollar-sign", "미국 금리", "US Rates") +
+        fxRow("원/달러",         s.fx_usd,       2) +
         rateRow("기준금리",      s.us_policy,    2) +
         rateRow("국채 3개월",    s.us_t3m,       2) +
         rateRow("국채 10년",     s.us_t10y,      2) +
-        rateRow("ECB 정책금리",  s.ecb_rate,     2) +
-        fxRow("원/달러",         s.fx_usd,       2);
+        rateRow("ECB 정책금리",  s.ecb_rate,     2);
 
       // ── 일본 금리
       $("card-jp").innerHTML =
         cardHead("rose", "japanese-yen", "일본 금리", "JP Rates") +
+        fxRow("원/100엔", s.fx_jpy, 2) +
         rateRow("기준금리", s.jp_policy, 2) +
-        rateRow("장기금리(≈10Y)", s.jp_long, 2) +
-        fxRow("원/100엔", s.fx_jpy, 2);
+        rateRow("장기금리(≈10Y)", s.jp_long, 2);
 
       // ── 반도체
       $("card-semi").innerHTML =
