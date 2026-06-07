@@ -292,7 +292,7 @@ def build_payload() -> dict:
         "당일 미공시 시 마지막 관측일 수치를 씁니다. Open API가 당일(KST)로 아직 반영되지 않았을 때는 ECOS 웹 메인 실시간 지표로 일부 항목을 보완합니다.",
         "미국 국채 10년(^TNX)·3개월(^IRX), 코스피(^KS11), 반도체(필라델피아 ^SOX, 삼성전자 005930.KS, SK하이닉스 000660.KS), "
         "부동산(KODEX 부동산리츠인프라 329200.KS, ESR켄달스퀘어 365550.KS, Prologis PLD, KODEX 건설 117700.KS, iShares US 부동산 IYR, Vanguard 부동산 VNQ)은 Yahoo Finance 일별 종가 기준입니다. "
-        "주거용 부동산(아파트 매매·전세가격지수, 전세가율)은 한국부동산원 ECOS 월간 시계열(901Y093·901Y094, 2021.6=100 기준)입니다.",
+        "주거용 부동산(아파트 매매·전세가격지수, 전세가율)은 KB부동산 데이터허브(data-api.kbland.kr) 월간 시계열입니다.",
     ]
 
     series: dict[str, dict] = {}
@@ -461,52 +461,24 @@ def build_payload() -> dict:
         if s_yf:
             series[key] = s_yf
 
-    # ── 주거용 부동산 (월) ────────────────────────────────
-    # 아파트 매매·전세가격지수 (전국): 한국부동산원, ECOS 901Y093/901Y094
-    r_apt_sale = _rows(f"1/1000/901Y093/M/{m_start}/{m_end}/H69B/R70A")
-    t, v = last_data_value(r_apt_sale)
-    series["apt_sale_idx"] = {
-        "label": "아파트 매매가격지수(전국)",
-        "value": _fmt_num(v, 2),
-        "unit": "p",
-        "time": t,
-        "delta_pp": _delta_pp_monthly_mom(r_apt_sale),
-        "spark": _spark_values(r_apt_sale, 24),
-        "note": "901Y093·H69B·R70A·월",
-    }
-
-    r_apt_lease = _rows(f"1/1000/901Y094/M/{m_start}/{m_end}/H69B/R70A")
-    t, v = last_data_value(r_apt_lease)
-    series["apt_lease_idx"] = {
-        "label": "아파트 전세가격지수(전국)",
-        "value": _fmt_num(v, 2),
-        "unit": "p",
-        "time": t,
-        "delta_pp": _delta_pp_monthly_mom(r_apt_lease),
-        "spark": _spark_values(r_apt_lease, 24),
-        "note": "901Y094·H69B·R70A·월",
-    }
-
-    # 전세가율 (파생: 전세가격지수 / 매매가격지수 × 100)
+    # ── 주거용 부동산 (월) — KB부동산 데이터허브 ──────────────
+    # 한국부동산원(ECOS 901Y093/094)은 공표 시차가 커 최신 월이 늦게 들어온다.
+    # KB부동산(data-api.kbland.kr)은 더 최신 월이 빠르게 반영되고 인증키도 불필요.
+    #   apt_sale_idx  : 아파트 매매가격지수(전국, 월)
+    #   apt_lease_idx : 아파트 전세가격지수(전국, 월)
+    #   jeonse_ratio  : 전세가율(실제 매매가 대비 전세가 비율, %) — 파생 아님
     try:
-        _sv = (series.get("apt_sale_idx") or {}).get("value")
-        _lv = (series.get("apt_lease_idx") or {}).get("value")
-        if _sv and _lv:
-            _fs = float(str(_sv).replace(" ", "").replace(",", ""))
-            _fl = float(str(_lv).replace(" ", "").replace(",", ""))
-            if _fs > 0:
-                _ratio = round(_fl / _fs * 100, 2)
-                series["jeonse_ratio"] = {
-                    "label": "전세가율(아파트·전국)",
-                    "value": _fmt_num(str(_ratio), 2),
-                    "unit": "%",
-                    "time": (series.get("apt_lease_idx") or {}).get("time"),
-                    "delta_pp": None,
-                    "spark": [],
-                    "note": "전세/매매가격지수×100 (파생)",
-                }
-    except Exception:
-        pass
+        from kb_land import fetch_kb_residential
+
+        kb = fetch_kb_residential()
+        for _k, _s in kb.items():
+            series[_k] = _s
+        if kb:
+            print(f"[KB] 주거용 부동산 {len(kb)}종 수집: {', '.join(kb.keys())}")
+        else:
+            print("[WARN] KB부동산 주거용 데이터 없음 — 주거용 카드 빈 값")
+    except Exception as e:
+        print(f"[WARN] KB부동산 수집 실패 — 주거용 카드 스킵: {e}")
 
     # ── 물가 (월) ─────────────────────────────────────
     aa = quote("*AA", safe="")
