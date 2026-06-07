@@ -292,7 +292,8 @@ def build_payload() -> dict:
         "당일 미공시 시 마지막 관측일 수치를 씁니다. Open API가 당일(KST)로 아직 반영되지 않았을 때는 ECOS 웹 메인 실시간 지표로 일부 항목을 보완합니다.",
         "미국 국채 10년(^TNX)·3개월(^IRX), 코스피(^KS11), 반도체(필라델피아 ^SOX, 삼성전자 005930.KS, SK하이닉스 000660.KS), "
         "부동산(KODEX 부동산리츠인프라 329200.KS, ESR켄달스퀘어 365550.KS, Prologis PLD, KODEX 건설 117700.KS, iShares US 부동산 IYR, Vanguard 부동산 VNQ)은 Yahoo Finance 일별 종가 기준입니다. "
-        "주거용 부동산(아파트 매매·전세가격지수, 전세가율)은 KB부동산 데이터허브(data-api.kbland.kr) 월간 시계열입니다.",
+        "주거용 부동산(아파트 매매·전세가격지수, 전세가율)은 KB부동산 데이터허브(data-api.kbland.kr) 월간 시계열입니다. "
+        "건축·공급(미분양주택·건축착공 연면적)은 한국은행 ECOS 월간 시계열(901Y074·901Y103)이며, 착공 연면적은 만㎡로 환산했습니다.",
     ]
 
     series: dict[str, dict] = {}
@@ -502,6 +503,44 @@ def build_payload() -> dict:
         "time": t,
         "spark": _spark_values(r, 24),
         "note": "404Y014·총지수·월",
+    }
+
+    # ── 건축·공급 (월) — ECOS 건설 물량지표 ───────────────────
+    # ECOS에는 '건설공사비지수' 같은 물가성 건설지수가 없어 물량지표를 쓴다.
+    #   unsold_homes   : 미분양주택(전국, 호) — 부동산 수급/경기 핵심
+    #   building_start : 건축착공 연면적(전국 합계) — 공급 선행지표, 만㎡ 환산
+    r_unsold = _rows(f"1/1000/901Y074/M/{m_start}/{m_end}/I410A")
+    t, v = last_data_value(r_unsold)
+    series["unsold_homes"] = {
+        "label": "미분양주택(전국)",
+        "value": _fmt_num(v, 0),
+        "unit": "호",
+        "time": t,
+        "delta_pp": _delta_pp_monthly_mom(r_unsold),
+        "spark": _spark_values(r_unsold, 24),
+        "note": "901Y074·전국·월",
+    }
+
+    # 건축착공 연면적: 2단계 코드 1(연면적)/I47AA(자재별=전체 합계). 단위 ㎡ → 만㎡ 환산.
+    r_start = _rows(f"1/1000/901Y103/M/{m_start}/{m_end}/1/I47AA")
+    t, v = last_data_value(r_start)
+    _val_m2 = None
+    if v not in (None, ""):
+        try:
+            _val_m2 = float(str(v).replace(",", "")) / 10000.0
+        except ValueError:
+            _val_m2 = None
+    _d_start = _delta_pp_monthly_mom(r_start)
+    if _d_start is not None:
+        _d_start = round(_d_start / 10000.0, 1)
+    series["building_start"] = {
+        "label": "건축착공 연면적(전국)",
+        "value": _fmt_num(str(_val_m2), 1) if _val_m2 is not None else None,
+        "unit": "만㎡",
+        "time": t,
+        "delta_pp": _d_start,
+        "spark": [round(x / 10000.0, 1) for x in _spark_values(r_start, 24)],
+        "note": "901Y103·연면적·월",
     }
 
     # ECOS 웹 메인 실시간 지표: (1) Open API보다 날짜가 더 최신이면 덮어쓰기

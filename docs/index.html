@@ -240,7 +240,8 @@
       <div class="card" id="card-reit"></div>
       <div class="card" id="card-res"></div>
       <div class="card" id="card-com"></div>
-      <div class="card" id="card-prices" style="grid-column: 1 / -1;"></div>
+      <div class="card" id="card-prices"></div>
+      <div class="card" id="card-build"></div>
     </div>
 
     <div class="footer">
@@ -465,13 +466,15 @@
         rateRow("기준금리",      s.us_policy,    2) +
         rateRow("국채 3개월",    s.us_t3m,       2) +
         rateRow("국채 10년",     s.us_t10y,      2) +
-        rateRow("ECB 정책금리",  s.ecb_rate,     2);
+        rateRow("ECB 정책금리",  s.ecb_rate,     2) +
+        fxRow("원/달러",         s.fx_usd,       2);
 
       // ── 일본 금리
       $("card-jp").innerHTML =
         cardHead("rose", "japanese-yen", "일본 금리", "JP Rates") +
         rateRow("기준금리", s.jp_policy, 2) +
-        rateRow("장기금리(≈10Y)", s.jp_long, 2);
+        rateRow("장기금리(≈10Y)", s.jp_long, 2) +
+        fxRow("원/100엔", s.fx_jpy, 2);
 
       // ── 반도체
       $("card-semi").innerHTML =
@@ -506,6 +509,12 @@
         cardHead("teal", "trending-up", "물가 지수", "Prices · 2020=100") +
         idxRow("생산자물가(PPI)", s.ppi) +
         idxRow("수출물가",        s.export_px);
+
+      // ── 건축·공급 (ECOS 물량지표)
+      $("card-build").innerHTML =
+        cardHead("blue", "hard-hat", "건축·공급", "Construction") +
+        fxRow("미분양주택(전국)", s.unsold_homes,   0) +
+        fxRow("건축착공 연면적",  s.building_start, 1);
 
       if (typeof lucide !== "undefined") lucide.createIcons();
     })
