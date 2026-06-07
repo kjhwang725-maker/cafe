@@ -238,6 +238,8 @@
       <div class="card" id="card-jp"></div>
       <div class="card" id="card-semi"></div>
       <div class="card" id="card-reit"></div>
+      <div class="card" id="card-res"></div>
+      <div class="card" id="card-com"></div>
       <div class="card" id="card-prices" style="grid-column: 1 / -1;"></div>
     </div>
 
@@ -484,6 +486,20 @@
         fxRow("KODEX 부동산리츠인프라", s.kr_reit_etf, 0) +
         fxRow("ESR켄달스퀘어(물류)",    s.esr_kendall, 0) +
         fxRow("Prologis(글로벌 산업용)", s.prologis,    2);
+
+      // ── 주거용 부동산
+      $("card-res").innerHTML =
+        cardHead("green", "home", "부동산·주거용", "Residential") +
+        fxRow("아파트 매매가격지수", s.apt_sale_idx,  2) +
+        fxRow("아파트 전세가격지수", s.apt_lease_idx, 2) +
+        rateRow("전세가율",           s.jeonse_ratio,  2);
+
+      // ── 상업용 부동산
+      $("card-com").innerHTML =
+        cardHead("amber", "store", "부동산·상업용", "Commercial") +
+        fxRow("KODEX 건설",           s.kr_construction, 0) +
+        fxRow("iShares US 부동산",    s.us_realestate,   2) +
+        fxRow("Vanguard 부동산(VNQ)", s.us_vnq,          2);
 
       // ── 물가
       $("card-prices").innerHTML =

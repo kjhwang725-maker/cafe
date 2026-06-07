@@ -291,7 +291,8 @@ def build_payload() -> dict:
         "한국 기준금리 증감은 전월 대비(%p)입니다. 국고채(3·5년)·환율 등 일별 시리즈 증감은 직전 관측일 대비이며, "
         "당일 미공시 시 마지막 관측일 수치를 씁니다. Open API가 당일(KST)로 아직 반영되지 않았을 때는 ECOS 웹 메인 실시간 지표로 일부 항목을 보완합니다.",
         "미국 국채 10년(^TNX)·3개월(^IRX), 코스피(^KS11), 반도체(필라델피아 ^SOX, 삼성전자 005930.KS, SK하이닉스 000660.KS), "
-        "부동산(KODEX 부동산리츠인프라 329200.KS, ESR켄달스퀘어 365550.KS, Prologis PLD)은 Yahoo Finance 일별 종가 기준입니다.",
+        "부동산(KODEX 부동산리츠인프라 329200.KS, ESR켄달스퀘어 365550.KS, Prologis PLD, KODEX 건설 117700.KS, iShares US 부동산 IYR, Vanguard 부동산 VNQ)은 Yahoo Finance 일별 종가 기준입니다. "
+        "주거용 부동산(아파트 매매·전세가격지수, 전세가율)은 한국부동산원 ECOS 월간 시계열(901Y093·901Y094, 2021.6=100 기준)입니다.",
     ]
 
     series: dict[str, dict] = {}
@@ -445,9 +446,13 @@ def build_payload() -> dict:
         ("samsung",     "005930.KS", "삼성전자",                  "원", 0),
         ("sk_hynix",    "000660.KS", "SK하이닉스",                "원", 0),
         # 부동산·산업용
-        ("kr_reit_etf", "329200.KS", "KODEX 부동산리츠인프라",    "원", 0),
-        ("esr_kendall", "365550.KS", "ESR켄달스퀘어(물류)",       "원", 0),
-        ("prologis",    "PLD",       "Prologis(글로벌 산업용)",   "$", 2),
+        ("kr_reit_etf",    "329200.KS", "KODEX 부동산리츠인프라",    "원", 0),
+        ("esr_kendall",    "365550.KS", "ESR켄달스퀘어(물류)",       "원", 0),
+        ("prologis",       "PLD",       "Prologis(글로벌 산업용)",   "$",  2),
+        # 주거용·상업용 부동산 추가
+        ("kr_construction","117700.KS", "KODEX 건설",               "원", 0),
+        ("us_realestate",  "IYR",       "iShares US 부동산(IYR)",   "$",  2),
+        ("us_vnq",         "VNQ",       "Vanguard 부동산(VNQ)",     "$",  2),
     ]
     for i, (key, ticker, label, unit, dec) in enumerate(yf_specs):
         if i > 0:
@@ -455,6 +460,53 @@ def build_payload() -> dict:
         s_yf = _build_yf_series(ticker, label, unit, dec)
         if s_yf:
             series[key] = s_yf
+
+    # ── 주거용 부동산 (월) ────────────────────────────────
+    # 아파트 매매·전세가격지수 (전국): 한국부동산원, ECOS 901Y093/901Y094
+    r_apt_sale = _rows(f"1/1000/901Y093/M/{m_start}/{m_end}/H69B/R70A")
+    t, v = last_data_value(r_apt_sale)
+    series["apt_sale_idx"] = {
+        "label": "아파트 매매가격지수(전국)",
+        "value": _fmt_num(v, 2),
+        "unit": "p",
+        "time": t,
+        "delta_pp": _delta_pp_monthly_mom(r_apt_sale),
+        "spark": _spark_values(r_apt_sale, 24),
+        "note": "901Y093·H69B·R70A·월",
+    }
+
+    r_apt_lease = _rows(f"1/1000/901Y094/M/{m_start}/{m_end}/H69B/R70A")
+    t, v = last_data_value(r_apt_lease)
+    series["apt_lease_idx"] = {
+        "label": "아파트 전세가격지수(전국)",
+        "value": _fmt_num(v, 2),
+        "unit": "p",
+        "time": t,
+        "delta_pp": _delta_pp_monthly_mom(r_apt_lease),
+        "spark": _spark_values(r_apt_lease, 24),
+        "note": "901Y094·H69B·R70A·월",
+    }
+
+    # 전세가율 (파생: 전세가격지수 / 매매가격지수 × 100)
+    try:
+        _sv = (series.get("apt_sale_idx") or {}).get("value")
+        _lv = (series.get("apt_lease_idx") or {}).get("value")
+        if _sv and _lv:
+            _fs = float(str(_sv).replace(" ", "").replace(",", ""))
+            _fl = float(str(_lv).replace(" ", "").replace(",", ""))
+            if _fs > 0:
+                _ratio = round(_fl / _fs * 100, 2)
+                series["jeonse_ratio"] = {
+                    "label": "전세가율(아파트·전국)",
+                    "value": _fmt_num(str(_ratio), 2),
+                    "unit": "%",
+                    "time": (series.get("apt_lease_idx") or {}).get("time"),
+                    "delta_pp": None,
+                    "spark": [],
+                    "note": "전세/매매가격지수×100 (파생)",
+                }
+    except Exception:
+        pass
 
     # ── 물가 (월) ─────────────────────────────────────
     aa = quote("*AA", safe="")
