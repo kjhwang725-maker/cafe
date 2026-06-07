@@ -310,6 +310,19 @@
     if (Math.abs(diff) / scale < 0.001) return "flat";
     return diff > 0 ? "up" : "down";
   }
+  /**
+   * 스파크라인 색상 기준: 배지(▲▼)와 일치시키기 위해 delta_pp(직전 대비 변동) 부호를 우선 사용.
+   * delta_pp 가 없는 항목(물가 등 배지 없는 지수)만 기간추세(trendOf)로 폴백한다.
+   */
+  function trendForSpark(s) {
+    const d = s && s.delta_pp;
+    if (d != null && d !== "" && !isNaN(Number(d))) {
+      const n = Number(d);
+      if (Math.abs(n) < 1e-9) return "flat";
+      return n > 0 ? "up" : "down";
+    }
+    return trendOf(s && s.spark);
+  }
 
   function chgBadge(d, asPct, decimals) {
     if (d == null || d === "" || isNaN(Number(d))) return `<span class="chg flat">—</span>`;
@@ -340,7 +353,7 @@
       return `<div class="spark"></div>`;
     }
     const period = sparkPeriodLabel(s);
-    return `<div class="spark">${sparkline(spark, trendOf(spark))}<div class="period">${esc(period)}</div></div>`;
+    return `<div class="spark">${sparkline(spark, trendForSpark(s))}<div class="period">${esc(period)}</div></div>`;
   }
 
   function rateRow(label, s, decimals) {
@@ -425,7 +438,7 @@
       else             chgHtml = `<span style="color:#60a5fa">▼ ${Math.abs(dn).toFixed(dec)}${suffix === "%" ? "%p" : ""}</span>`;
     }
     const spark = (Array.isArray(s.spark) && s.spark.length >= 2)
-      ? `<div class="kpi-spark">${sparkline(s.spark, trendOf(s.spark), 80, 16)}<div class="period">${esc(sparkPeriodLabel(s))}</div></div>` : "";
+      ? `<div class="kpi-spark">${sparkline(s.spark, trendForSpark(s), 80, 16)}<div class="period">${esc(sparkPeriodLabel(s))}</div></div>` : "";
     return `<div class="kpi"><div class="name">${esc(name)}</div><div class="val num">${valStr}${suffix ? `<span class="u">${esc(suffix)}</span>` : ""}</div><div class="chg">${chgHtml}</div>${spark}</div>`;
   }
 
