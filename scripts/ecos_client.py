@@ -20,10 +20,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MD_PATH = os.path.join(ROOT, "한국은행.md")
 BASE = "https://ecos.bok.or.kr/api/StatisticSearch"
 
-_ECOS_API_KEY = "ZMXBVCYEOQILJ3QNMIOM"
-
-
 def load_api_key() -> str:
+    # 우선순위: ECOS_API_KEY 환경변수 → 한국은행.md (gitignore 등재, 로컬 전용)
+    # 키는 소스에 하드코딩하지 않는다 — 미설정 시 빈 문자열 반환.
     k = (os.environ.get("ECOS_API_KEY") or "").strip()
     if k:
         return k
@@ -33,7 +32,7 @@ def load_api_key() -> str:
         found = re.findall(r"\b[A-Z0-9]{15,}\b", t)
         if found:
             return found[-1].strip()
-    return _ECOS_API_KEY
+    return ""
 
 
 def statistic_search(
