@@ -3,6 +3,10 @@ setlocal
 chcp 65001 >nul
 cd /d "%~dp0"
 
+rem 파이썬 런처를 한 번만 탐지: py -3 우선, 없으면 python (설치.bat 과 동일 기준)
+set "PYEXE=py -3"
+%PYEXE% --version >nul 2>&1 || set "PYEXE=python"
+
 echo [1/5] generate_dashboard.py
 call :pyrun scripts\generate_dashboard.py
 if errorlevel 1 goto :fail
@@ -46,7 +50,7 @@ echo Done.
 exit /b 0
 
 :pyrun
-python %*
+%PYEXE% %*
 exit /b %ERRORLEVEL%
 
 :fail
