@@ -169,8 +169,8 @@ def cafe_door_preview() -> HTMLResponse:
         # [MyApps] 대시보드 카드 emoji 와 통일하기 위한 favicon — 제거해도 앱 동작 영향 없음
         '<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚪</text></svg>">'
         "<title>카페 대문 미리보기</title>"
-        "<style>body{margin:0;padding:16px;background:#f5f5f5;font-family:system-ui,Segoe UI,Apple SD Gothic Neo,sans-serif}"
-        ".wrap{max-width:780px;margin:0 auto;background:#fff;padding:12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08)}"
+        "<style>body{margin:0;padding:16px;background:#f7f7f8;font-family:'Pretendard Variable','Pretendard','Malgun Gothic',system-ui,sans-serif;color:#1a1a1a;-webkit-font-smoothing:antialiased}"
+        ".wrap{max-width:780px;margin:0 auto;background:#fff;padding:12px;border-radius:0.75rem;box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05)}"
         "</style></head><body><div class='wrap'>"
         + body
         + "</div></body></html>"
@@ -237,46 +237,80 @@ LANDING_HTML = """<!doctype html>
 <!-- [MyApps] 대시보드 카드 emoji 와 통일하기 위한 favicon — 제거해도 앱 동작 영향 없음 -->
 <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚪</text></svg>">
 <title>카페 전광판</title>
+<!-- ui-design-system:applied -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  window.tailwind = window.tailwind || {};
+  tailwind.config = { theme: { extend: {
+    colors: {
+      brand:   { 50:'#eef2ff', 100:'#e0e7ff', 300:'#a5b4fc', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' },
+      ink:     { 50:'#f8fafc', 100:'#f1f5f9', 200:'#e2e8f0', 300:'#cbd5e1', 400:'#94a3b8', 500:'#64748b', 600:'#475569', 700:'#334155', 800:'#1e293b', 900:'#0f172a' },
+      success: { 50:'#dcfce7', 600:'#059669', 700:'#047857' },
+      warning: { 50:'#fef9c3', 600:'#d97706', 700:'#b45309' },
+      danger:  { 50:'#fee2e2', 600:'#dc2626', 700:'#b91c1c' },
+      canvas:'#f7f7f8', panel:'#ffffff', line:'#e2e8f0',
+      text:'#1a1a1a', muted:'#64748b', faint:'#94a3b8',
+      accent:'#4f46e5', accentHover:'#4338ca', ok:'#059669', warn:'#d97706', err:'#dc2626',
+    },
+    fontFamily: { sans: ['Pretendard Variable','Pretendard','Malgun Gothic','system-ui','sans-serif'] },
+    borderRadius: { card:'0.75rem', pill:'9999px' },
+    boxShadow: { card:'0 1px 2px 0 rgb(0 0 0 / 0.05)', nav:'0 -2px 8px rgb(0 0 0 / 0.04)', pop:'0 4px 12px rgb(0 0 0 / 0.15)' },
+    fontSize: {
+      display: ['2.125rem', { lineHeight:'2.625rem', fontWeight:'800', letterSpacing:'-0.02em' }],
+      h1:    ['1.75rem',  { lineHeight:'2.375rem', fontWeight:'700' }],
+      h2:    ['1.5rem',   { lineHeight:'2.125rem', fontWeight:'700' }],
+      title: ['1.375rem', { lineHeight:'1.875rem', fontWeight:'700' }],
+      body:  ['1.0625rem',{ lineHeight:'1.625rem', fontWeight:'400' }],
+      label: ['0.9375rem',{ lineHeight:'1.375rem', fontWeight:'600' }],
+      micro: ['0.8125rem',{ lineHeight:'1.125rem', fontWeight:'600' }],
+    },
+  }}};
+</script>
 <style>
+  body { background:#f7f7f8; color:#1a1a1a; font-family:'Pretendard Variable','Pretendard','Malgun Gothic',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .chip { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:9999px; font-size:0.75rem; font-weight:600; }
+  .chip-green{background:#dcfce7;color:#166534}.chip-purple{background:#ede9fe;color:#6d28d9}.chip-blue{background:#e0e7ff;color:#3730a3}
+  .chip-gray{background:#f1f5f9;color:#475569}.chip-yellow{background:#fef9c3;color:#854d0e}.chip-red{background:#fee2e2;color:#b91c1c}.chip-orange{background:#ffedd5;color:#9a3412}
+  :focus-visible { outline:2px solid #6366f1; outline-offset:1px; }
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif; background:#f4f5f7; color:#1f2937; }
-  header { padding:14px 20px; background:#1f2937; color:#fff; display:flex; align-items:center; gap:12px; }
+  header { padding:14px 20px; background:#1e293b; color:#fff; display:flex; align-items:center; gap:12px; }
   header h1 { margin:0; font-size:17px; font-weight:600; }
   header .spacer { flex:1; }
   main { max-width: 1100px; margin: 0 auto; padding: 20px; display:flex; flex-direction:column; gap:16px; }
-  .step { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.06); overflow:hidden; opacity:.55; transition: opacity .2s; }
+  .step { background:#fff; border-radius:0.75rem; box-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05); overflow:hidden; opacity:.55; transition: opacity .2s; }
   .step.active, .step.done { opacity: 1; }
-  .step header { background:#f9fafb; color:#1f2937; padding:14px 18px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px; }
-  .step .num { width:30px; height:30px; border-radius:50%; background:#9ca3af; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; flex-shrink:0; }
-  .step.active .num { background:#2563eb; }
-  .step.done  .num { background:#10b981; }
+  .step header { background:#f8fafc; color:#1a1a1a; padding:14px 18px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:12px; }
+  .step .num { width:30px; height:30px; border-radius:50%; background:#94a3b8; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; flex-shrink:0; }
+  .step.active .num { background:#4f46e5; }
+  .step.done  .num { background:#059669; }
   .step .title { font-weight:600; font-size:15px; }
-  .step .desc  { font-size:12px; color:#6b7280; }
+  .step .desc  { font-size:12px; color:#64748b; }
   .step .body  { padding:16px 18px; display:flex; flex-direction:column; gap:12px; }
   .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  button.primary { background:#2563eb; color:#fff; border:0; padding:10px 18px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600; }
-  button.primary:hover { background:#1d4ed8; }
+  button.primary { background:#4f46e5; color:#fff; border:0; padding:10px 18px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600; }
+  button.primary:hover { background:#4338ca; }
   button.primary:disabled { opacity:.55; cursor:not-allowed; }
-  button.secondary { background:#fff; color:#1f2937; border:1px solid #d1d5db; padding:9px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
-  button.secondary:hover { background:#f3f4f6; }
+  button.secondary { background:#fff; color:#1a1a1a; border:1px solid #e2e8f0; padding:9px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+  button.secondary:hover { background:#f1f5f9; }
   a.btnlink { display:inline-block; text-decoration:none; }
-  .status-line { font-size:13px; color:#374151; }
-  .status-line.error { color:#b91c1c; }
-  .status-line.ok    { color:#047857; }
-  pre.log { margin:0; padding:10px 14px; background:#111827; color:#d1d5db; font-size:11px; max-height:160px; overflow:auto; white-space:pre-wrap; border-radius:6px; display:none; }
+  .status-line { font-size:13px; color:#334155; }
+  .status-line.error { color:#dc2626; }
+  .status-line.ok    { color:#059669; }
+  pre.log { margin:0; padding:10px 14px; background:#0f172a; color:#cbd5e1; font-size:11px; max-height:160px; overflow:auto; white-space:pre-wrap; border-radius:6px; display:none; }
   .preview-grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
   @media (max-width: 820px) { .preview-grid { grid-template-columns: 1fr; } }
-  iframe.preview { width:100%; height:380px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; }
-  textarea.html { width:100%; height:380px; padding:10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:11px; border:1px solid #e5e7eb; border-radius:6px; resize:vertical; outline:none; background:#fafafa; }
+  iframe.preview { width:100%; height:380px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; }
+  textarea.html { width:100%; height:380px; padding:10px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:11px; border:1px solid #e2e8f0; border-radius:6px; resize:vertical; outline:none; background:#f8fafc; }
   .label-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
   .label-row .desc { flex:1; margin:0; }
-  button.mini { background:#eef2ff; color:#1f2937; border:1px solid #c7d2fe; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:12px; }
+  button.mini { background:#eef2ff; color:#1a1a1a; border:1px solid #c7d2fe; padding:3px 10px; border-radius:4px; cursor:pointer; font-size:12px; }
   button.mini:hover { background:#e0e7ff; }
   button.mini:disabled { opacity:.5; cursor:not-allowed; }
   details.dash { margin-top:8px; }
-  details.dash summary { cursor:pointer; font-size:12px; color:#6b7280; padding:4px 0; }
-  details.dash iframe { width:100%; height:520px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; margin-top:6px; }
+  details.dash summary { cursor:pointer; font-size:12px; color:#64748b; padding:4px 0; }
+  details.dash iframe { width:100%; height:520px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; margin-top:6px; }
 </style>
 </head>
 <body>
