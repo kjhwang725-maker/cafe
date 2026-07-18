@@ -347,13 +347,19 @@
     return isDaily ? `${n}일` : `${n}개월`;
   }
 
+  /** 차트(스파크라인) 아래 라벨: "기간 · 데이터날짜"(최신 시점). 데이터가 얼마나 최신인지 함께 표시. */
+  function sparkFoot(s) {
+    const period = sparkPeriodLabel(s);
+    const date = timeLabel(s);
+    return period && date ? `${period} · ${date}` : (period || date || "");
+  }
+
   function sparkCell(s) {
     const spark = s && s.spark;
     if (!Array.isArray(spark) || spark.length < 2) {
       return `<div class="spark"></div>`;
     }
-    const period = sparkPeriodLabel(s);
-    return `<div class="spark">${sparkline(spark, trendForSpark(s))}<div class="period">${esc(period)}</div></div>`;
+    return `<div class="spark">${sparkline(spark, trendForSpark(s))}<div class="period">${esc(sparkFoot(s))}</div></div>`;
   }
 
   function rateRow(label, s, decimals) {
@@ -438,7 +444,7 @@
       else             chgHtml = `<span style="color:#60a5fa">▼ ${Math.abs(dn).toFixed(dec)}${suffix === "%" ? "%p" : ""}</span>`;
     }
     const spark = (Array.isArray(s.spark) && s.spark.length >= 2)
-      ? `<div class="kpi-spark">${sparkline(s.spark, trendForSpark(s), 80, 16)}<div class="period">${esc(sparkPeriodLabel(s))}</div></div>` : "";
+      ? `<div class="kpi-spark">${sparkline(s.spark, trendForSpark(s), 80, 16)}<div class="period">${esc(sparkFoot(s))}</div></div>` : "";
     return `<div class="kpi"><div class="name">${esc(name)}</div><div class="val num">${valStr}${suffix ? `<span class="u">${esc(suffix)}</span>` : ""}</div><div class="chg">${chgHtml}</div>${spark}</div>`;
   }
 
