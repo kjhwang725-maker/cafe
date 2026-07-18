@@ -332,6 +332,81 @@ def _kr_policy_rate_from_bok() -> dict | None:
     }
 
 
+# ── 100대 지표(ECOS KeyStatisticList) ────────────────────────────────────────
+# 개별 시리즈 StatisticSearch 는 정책결정을 늦게 반영(기준금리 지연 사례)하는 반면,
+# 100대 지표는 헤드라인 '현재값'을 즉시 제공한다. 한 번 호출로 100여 개를 받아
+# 한국 지표의 표시값을 이 현재값으로 덮어쓴다. (해외 정책금리·미분양은 100대 지표에
+# 없으므로 매핑하지 않고 기존 소스를 그대로 둔다.)
+KEYSTAT_API_URL_TMPL = "https://ecos.bok.or.kr/api/KeyStatisticList/{key}/json/kr/1/200"
+
+# series 키 → (100대 지표 지표명, 소수 자리). 100대 지표에 있는 한국 지표만.
+KEYSTAT_OVERLAY_MAP: dict[str, tuple[str, int]] = {
+    "kr_policy_rate": ("한국은행 기준금리", 2),
+    "kr_gov_3y": ("국고채수익률(3년)", 2),
+    "kr_gov_5y": ("국고채수익률(5년)", 2),
+    "cd_91": ("CD수익률(91일)", 3),
+    "call_rate": ("콜금리(익일물)", 3),
+    "export_px": ("수출물가지수", 2),
+    "ppi": ("생산자물가지수", 2),
+}
+
+
+def _fetch_key_statistics() -> dict[str, dict]:
+    """ECOS 100대 지표(KeyStatisticList)를 한 번 호출해 {지표명: {value, unit}} 반환.
+    어떤 실패도 빈 dict 로 흡수(호출측이 기존 소스를 유지하도록)."""
+    from http_retry import get_json
+
+    try:
+        key = load_api_key()
+    except Exception as e:
+        print(f"[KEYSTAT] API 키 로드 실패: {e}")
+        return {}
+    url = KEYSTAT_API_URL_TMPL.format(key=quote(key, safe=""))
+    try:
+        j = get_json(url)
+    except Exception as e:
+        print(f"[KEYSTAT] 100대 지표 조회 실패: {e}")
+        return {}
+    if not isinstance(j, dict) or j.get("RESULT", {}).get("CODE", "").startswith("INFO"):
+        return {}
+    rows = (j.get("KeyStatisticList", {}) or {}).get("row", []) or []
+    out: dict[str, dict] = {}
+    for r in rows:
+        name = (r.get("KEYSTAT_NAME") or "").strip()
+        if name:
+            out[name] = {"value": r.get("DATA_VALUE"), "unit": (r.get("UNIT_NAME") or "").strip()}
+    return out
+
+
+def _apply_keystat_overlay(series: dict[str, dict]) -> None:
+    """한국 지표의 헤드라인 표시값을 100대 지표 현재값으로 덮어쓴다(제자리 수정).
+    단위가 기존과 다르면(정의·기준 상이) 안전하게 건너뛴다. 추세(스파크라인)·증감은 기존 이력 유지."""
+    ks = _fetch_key_statistics()
+    if not ks:
+        print("[KEYSTAT] 100대 지표 비어 있음 → 덮어쓰기 생략(기존 소스 유지)")
+        return
+    for skey, (kname, decimals) in KEYSTAT_OVERLAY_MAP.items():
+        sd = series.get(skey)
+        if not sd:
+            continue
+        item = ks.get(kname)
+        if not item or item.get("value") in (None, ""):
+            print(f"[KEYSTAT] 지표 미발견/빈값: {kname} → {skey} 유지")
+            continue
+        ex_unit = (sd.get("unit") or "").strip()
+        ks_unit = (item.get("unit") or "").strip()
+        # 단위 정합성 가드: 동일하거나 둘 다 % 일 때만 덮어쓴다(잘못된 단위 이식 방지).
+        if ex_unit and ks_unit and ex_unit != ks_unit and not (ex_unit == "%" and ks_unit == "%"):
+            print(f"[KEYSTAT] 단위 불일치로 생략: {sd.get('label')} ({ex_unit} vs {ks_unit})")
+            continue
+        new_val = _fmt_num(str(item["value"]), decimals)
+        if new_val is None:
+            continue
+        sd["value"] = new_val
+        base_note = (sd.get("note") or "").split(" · 값=")[0]
+        sd["note"] = (base_note + " · 값=100대지표").strip(" ·")
+
+
 def _build_yf_series(ticker: str, label: str, unit: str, decimals: int) -> dict | None:
     """yfinance 종가 시리즈를 데이터 스키마에 맞춰 dict 으로 변환."""
     yfd = _fetch_yfinance(ticker)
@@ -667,6 +742,10 @@ def build_payload() -> dict:
         "spark": [round(x / 10000.0, 1) for x in _spark_values(r_start, 24)],
         "note": "901Y103·연면적·월",
     }
+
+    # 100대 지표(KeyStatisticList) 오버레이 — 한국 지표 헤드라인 값을 현재값으로 덮어쓴다.
+    # (개별 시리즈 지연 문제 해소. 아래 실시간 오버레이가 국고채·CD 등 일부를 다시 최신화할 수 있음.)
+    _apply_keystat_overlay(series)
 
     # ECOS 웹 메인 실시간 지표: (1) Open API보다 날짜가 더 최신이면 덮어쓰기
     # (2) Open API의 관측일이 당일(KST)까지 아직 안 올라온 경우에도 RT로 보완(동일 영업일 재조회·시간값 등)
