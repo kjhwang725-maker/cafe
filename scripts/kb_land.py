@@ -104,8 +104,21 @@ def fetch_kb_residential() -> dict[str, dict]:
         if s:
             out["apt_lease_idx"] = s
 
+    # 전세가율: dealCntstTnantRato 는 월간 지수(매매·전세)보다 한 달 앞선 '당월 미확정' 값을
+    # 포함할 수 있다(예: 지수는 202606까지인데 전세가율은 202607까지). 공식 월간 지수의
+    # 최신 확정월까지만 사용해 표시 시점을 정확·일관되게 맞춘다.
     dts, vs = _fetch("dealCntstTnantRato", {"매물종별구분": "01"})
     if dts:
+        ref_month = None
+        for _k in ("apt_lease_idx", "apt_sale_idx"):
+            if out.get(_k) and out[_k].get("time"):
+                ref_month = str(out[_k]["time"])
+                break
+        if ref_month:
+            trimmed = [(d, v) for d, v in zip(dts, vs) if str(d) <= ref_month]
+            if trimmed:
+                dts = [d for d, _ in trimmed]
+                vs = [v for _, v in trimmed]
         s = _to_series(dts, vs, "전세가율(아파트·전국)", "%", "KB부동산 전세가격비율·월", 2)
         if s:
             out["jeonse_ratio"] = s
