@@ -211,6 +211,127 @@ def _spark_values(rows: list[dict], n: int = 24) -> list[float]:
     return [round(p.value, 4) for p in tail]
 
 
+# 한국은행 공식 기준금리 페이지 — ECOS 월간 시리즈는 정책결정을 며칠~한 달 늦게 반영하므로,
+# 결정 당일 값을 얻기 위해 공식 페이지를 1순위 소스로 쓴다. 페이지에 기준금리 변경 이력이
+# JS 배열 chartObj2_s = [["YYYY/MM/DD", rate], ...] 로 박혀 있어 이를 파싱한다.
+BOK_BASE_RATE_URL = (
+    "https://www.bok.or.kr/portal/singl/baseRate/list.do?dataSeCd=01&menuNo=200643"
+)
+
+
+def _fetch_bok_base_rate_steps() -> list[tuple[str, float]]:
+    """한국은행 공식 페이지에서 기준금리 '변경 이력'을 [(YYYYMMDD, rate), ...] 오름차순으로 반환.
+    값이 실제로 바뀐 지점만 남긴다(오늘 마커·중복 제거). 실패 시 빈 리스트."""
+    import re
+
+    import requests
+
+    resp = requests.get(
+        BOK_BASE_RATE_URL,
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) CafeDashboard/1.0"},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    html = resp.text
+    m = re.search(r"chartObj2_s\s*=\s*", html)
+    if not m:
+        return []
+    b = html.index("[", m.end())
+    depth, end = 0, None
+    for i in range(b, len(html)):
+        ch = html[i]
+        if ch == "[":
+            depth += 1
+        elif ch == "]":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    if end is None:
+        return []
+    arr = json.loads(html[b : end + 1])
+    raw: list[tuple[str, float]] = []
+    for item in arr:
+        try:
+            d = str(item[0]).strip().replace("/", "")  # YYYYMMDD
+            v = float(item[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if len(d) == 8 and d.isdigit():
+            raw.append((d, v))
+    raw.sort(key=lambda x: x[0])
+    steps: list[tuple[str, float]] = []
+    for d, v in raw:
+        if not steps or steps[-1][1] != v:  # 값이 바뀐 지점만
+            steps.append((d, v))
+    return steps
+
+
+def _rate_in_effect(steps: list[tuple[str, float]], ymd: str) -> float | None:
+    """주어진 날짜(YYYYMMDD)에 유효한 기준금리 = 그 날짜 이하의 마지막 변경값(계단함수)."""
+    val = None
+    for d, v in steps:  # 오름차순
+        if d <= ymd:
+            val = v
+        else:
+            break
+    return val
+
+
+def _monthly_spark_from_steps(steps: list[tuple[str, float]], n: int = 24) -> list[float]:
+    """계단(변경일, 값) 이력을 최근 n개월 각 월말 유효값으로 채워 스파크라인 배열 생성."""
+    if not steps:
+        return []
+    today = datetime.now(KST).date()
+    months: list[tuple[int, int]] = []
+    y, mo = today.year, today.month
+    for _ in range(n):
+        months.append((y, mo))
+        mo -= 1
+        if mo == 0:
+            mo, y = 12, y - 1
+    months.reverse()
+    out: list[float] = []
+    for yy, mm in months:
+        val = _rate_in_effect(steps, f"{yy:04d}{mm:02d}31")
+        if val is not None:
+            out.append(round(val, 4))
+    return out
+
+
+def _kr_policy_rate_from_bok() -> dict | None:
+    """한국 기준금리 시리즈(dict) — 한국은행 공식 페이지 기반. 실패 시 None(호출측이 ECOS 로 폴백).
+    delta_pp 는 ECOS 월간 MoM 과 동일 의미: 오늘 유효금리 − 한 달 전 유효금리(변경 직후 한 달만 ±)."""
+    import calendar
+
+    try:
+        steps = _fetch_bok_base_rate_steps()
+    except Exception as e:  # 네트워크·레이아웃 변경 등 어떤 실패도 폴백으로
+        print(f"[WARN] 한국은행 기준금리 페이지 조회 실패: {e}")
+        return None
+    if not steps:
+        print("[WARN] 한국은행 기준금리 이력 파싱 결과 없음 → ECOS 폴백")
+        return None
+    today = datetime.now(KST).date()
+    cur_val = _rate_in_effect(steps, today.strftime("%Y%m%d"))
+    if cur_val is None:
+        return None
+    pm_y, pm_m = (today.year, today.month - 1) if today.month > 1 else (today.year - 1, 12)
+    pm_d = min(today.day, calendar.monthrange(pm_y, pm_m)[1])
+    prev_val = _rate_in_effect(steps, f"{pm_y:04d}{pm_m:02d}{pm_d:02d}")
+    delta = round(cur_val - prev_val, 4) if prev_val is not None else None
+    change_date = steps[-1][0]  # 마지막 실제 변경일
+    return {
+        "label": "한국 기준금리",
+        "value": _fmt_num(str(cur_val), 2),
+        "unit": "%",
+        "time": change_date[:6],  # YYYYMM (기존 스키마와 동일한 월 표기)
+        "delta_pp": delta,
+        "spark": _monthly_spark_from_steps(steps, 24),
+        "note": f"한국은행 공식(변경일 {change_date[:4]}.{change_date[4:6]}.{change_date[6:8]})",
+    }
+
+
 def _build_yf_series(ticker: str, label: str, unit: str, decimals: int) -> dict | None:
     """yfinance 종가 시리즈를 데이터 스키마에 맞춰 dict 으로 변환."""
     yfd = _fetch_yfinance(ticker)
@@ -299,18 +420,22 @@ def build_payload() -> dict:
     series: dict[str, dict] = {}
 
     # ── 국내 금리·채권 (일/월) ─────────────────────────
-    r = _rows(f"1/1000/722Y001/M/202201/{m_end}/0101000")
-    t, v = last_data_value(r)
-    d_pol = _delta_pp_monthly_mom(r)
-    series["kr_policy_rate"] = {
-        "label": "한국 기준금리",
-        "value": _fmt_num(v, 2),
-        "unit": "%",
-        "time": t,
-        "delta_pp": d_pol,
-        "spark": _spark_values(r, 24),
-        "note": "722Y001·0101000·월",
-    }
+    # 한국 기준금리: 한국은행 공식 페이지(정책결정 당일 반영)를 1순위로,
+    # 조회 실패 시에만 ECOS 월간 시리즈(722Y001·0101000)로 폴백한다.
+    pol = _kr_policy_rate_from_bok()
+    if pol is None:
+        r = _rows(f"1/1000/722Y001/M/202201/{m_end}/0101000")
+        t, v = last_data_value(r)
+        pol = {
+            "label": "한국 기준금리",
+            "value": _fmt_num(v, 2),
+            "unit": "%",
+            "time": t,
+            "delta_pp": _delta_pp_monthly_mom(r),
+            "spark": _spark_values(r, 24),
+            "note": "722Y001·0101000·월(ECOS 폴백)",
+        }
+    series["kr_policy_rate"] = pol
 
     r = _rows(f"1/1000/817Y002/D/{d_start_mom}/{d_end}/010200000")
     t, v = last_data_value(r)
