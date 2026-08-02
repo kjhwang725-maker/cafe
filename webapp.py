@@ -16,6 +16,26 @@ FastAPI 웹앱 — 기존 카페 전광판(대시보드 + 카페 대문 이미�
 
 from __future__ import annotations
 
+# ── 자식 프로세스 콘솔 창 숨김 (Windows) ─────────────────────────────
+# 이 앱은 MyApps 런처가 pythonw(콘솔 없음)로 띄운다. 콘솔 없는 프로세스가
+# node·git·ffmpeg·playwright 같은 콘솔 프로그램을 subprocess 로 실행하면
+# Windows 가 새 검은 콘솔 창을 띄운다. 아래 패치로 모든 자식 프로세스에
+# CREATE_NO_WINDOW 를 자동 부여해 백그라운드로 조용히 돌게 한다(멱등).
+import sys as _sys
+import subprocess as _subprocess
+if _sys.platform == "win32" and not getattr(_subprocess.Popen, "_myapps_no_window", False):
+    _CREATE_NO_WINDOW = 0x08000000
+    _CREATE_NEW_CONSOLE = 0x00000010
+    _orig_popen_init = _subprocess.Popen.__init__
+    def _popen_init_no_window(self, *args, **kwargs):
+        flags = kwargs.get("creationflags", 0)
+        if not (flags & _CREATE_NEW_CONSOLE):  # 명시적으로 새 콘솔을 원한 경우는 존중
+            kwargs["creationflags"] = flags | _CREATE_NO_WINDOW
+        _orig_popen_init(self, *args, **kwargs)
+    _subprocess.Popen.__init__ = _popen_init_no_window
+    _subprocess.Popen._myapps_no_window = True
+# ────────────────────────────────────────────────────────────────────
+
 import asyncio
 import os
 import subprocess
